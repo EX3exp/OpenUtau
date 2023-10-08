@@ -1,854 +1,1475 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Linq.Expressions;
+using System.Security.Policy;
+using System.Text;
+using Melanchall.DryWetMidi.Core;
+using NumSharp.Extensions;
 using OpenUtau.Api;
 using OpenUtau.Core.Ustx;
+using Serilog;
+using SharpCompress;
 
 namespace OpenUtau.Plugin.Builtin {
-     /// This phonemizer is based on 'KOR CVC Phonemizer'(by NANA). ///
+     /// Phonemizer for 'KOR CBNN(Combination)' ///
     [Phonemizer("Korean CBNN Phonemizer", "KO CBNN", "EX3", language:"KO")]
 
     public class KoreanCBNNPhonemizer : Phonemizer {
 
-        // ↓ Plainvowels of [ㅏ ㅐ ㅑ ㅒ ㅓ ㅔ ㅕ ㅖ ㅗ ㅘ ㅙ ㅚ ㅛ ㅜ ㅝ ㅞ ㅟ ㅠ ㅡ ㅢ ㅣ]. //
-        static readonly string[] naPlainVowels = new string[] { "a", "e", "a", "e", "eo", "e", "eo", "e", "o", "a", "e", "e", "o", "u", "eo", "e", "i", "u", "eu", "i", "i" };
-        static readonly string[] naConsonants = new string[] {
-            "ㄱ:g","ㄲ:gg","ㄴ:n","ㄷ:d","ㄸ:dd","ㄹ:r","ㅁ:m","ㅂ:b","ㅃ:bb","ㅅ:s","ㅆ:ss","ㅇ:","ㅈ:j","ㅉ:jj","ㅊ:ch","ㅋ:k","ㅌ:t","ㅍ:p","ㅎ:h"
-        };
-
-        // ↓ ㅢ is e (* There's no "eui" in Kor CBNN *).//
-        static readonly string[] naVowels = new string[] {
-            "ㅏ:a","ㅐ:e","ㅑ:ya","ㅒ:ye","ㅓ:eo","ㅔ:e","ㅕ:yeo","ㅖ:ye","ㅗ:o","ㅘ:wa","ㅙ:we","ㅚ:we","ㅛ:yo","ㅜ:u","ㅝ:weo","ㅞ:we","ㅟ:wi","ㅠ:yu","ㅡ:eu","ㅢ:e","ㅣ:i"
-        };
-
-        // ↓ ["Grapheme : Phoneme"] of batchims.
-        static readonly string[] naFinals = new string[] {
-            ":","ㄱ:k","ㄲ:k","ㄳ:k","ㄴ:n","ㄵ:n","ㄶ:n","ㄷ:t","ㄹ:l","ㄺ:l","ㄻ:m","ㄼ:l","ㄽ:l","ㄾ:l","ㄿ:p","ㅀ:l","ㅁ:m","ㅂ:p","ㅄ:p","ㅅ:t","ㅆ:t","ㅇ:ng","ㅈ:t","ㅊ:t","ㅋ:k","ㅌ:t","ㅍ:p:1","ㅎ:t:2"
-        };
-        private const int hangeulStartIndex = 0xAC00; // unicode of '가'
-        private const int hangeulEndIndex = 0xD7A3; // unicode of '힣'
-
-        // ======================================================================================
-
-
-        // ↓ Plain vowels of Korean.
-        static readonly string[] plainVowels = new string[] { "eu", "eo", "a", "i", "u", "e", "o" };
-
-        // ↓ Vowels of romanized CVs.
-        static readonly string[] vowels = new string[] {
-            "eu=geu,neu,deu,reu,meu,beu,seu,eu,jeu,cheu,keu,teu,peu,heu,ggeu,ddeu,bbeu,sseu,jjeu",
-            "eo=geo,neo,deo,reo,meo,beo,seo,eo,jeo,cheo,keo,teo,peo,heo,ggeo,ddeo,bbeo,sseo,jjeo,gyeo,nyeo,dyeo,ryeo,myeo,byeo,syeo,yeo,jyeo,chyeo,kyeo,tyeo,pyeo,hyeo,ggyeo,ddyeo,bbyeo,ssyeo,jjyeo,gweo,nweo,dweo,rweo,mweo,bweo,sweo,weo,jweo,chweo,kweo,tweo,pweo,hweo,ggweo,ddweo,bbweo,ssweo,jjweo",
-            "a=ga,na,da,ra,ma,ba,sa,a,ja,cha,ka,ta,pa,ha,gga,dda,bba,ssa,jja,gya,nya,dya,rya,mya,bya,sya,ya,jya,chya,kya,tya,pya,hya,ggya,ddya,bbya,ssya,jjya,gwa,nwa,dwa,rwa,mwa,bwa,swa,wa,jwa,chwa,kwa,twa,pwa,hwa,ggwa,ddwa,bbwa,sswa,jjwa",
-            "e=ge,ne,de,re,me,be,se,e,je,che,ke,te,pe,he,gge,dde,bbe,sse,jje,gye,nye,dye,rye,mye,bye,sye,ye,jye,chye,kye,tye,pye,hye,ggye,ddye,bbye,ssye,jjye,gwe,nwe,dwe,rwe,mwe,bwe,swe,we,jwe,chwe,kwe,twe,pwe,hwe,ggwe,ddwe,bbwe,sswe,jjwe",
-            "i=gi,ni,di,ri,mi,bi,si,i,ji,chi,ki,ti,pi,hi,ggi,ddi,bbi,ssi,jji,gwi,nwi,dwi,rwi,mwi,bwi,swi,wi,jwi,chwi,kwi,twi,pwi,hwi,ggwi,ddwi,bbwi,sswi,jjwi",
-            "o=go,no,do,ro,mo,bo,so,o,jo,cho,ko,to,po,ho,ggo,ddo,bbo,sso,jjo,gyo,nyo,dyo,ryo,myo,byo,syo,yo,jyo,chyo,kyo,tyo,pyo,hyo,ggyo,ddyo,bbyo,ssyo,jjyo",
-            "u=gu,nu,du,ru,mu,bu,su,u,ju,chu,ku,tu,pu,hu,ggu,ddu,bbu,ssu,jju,gyu,nyu,dyu,ryu,myu,byu,syu,yu,jyu,chyu,kyu,tyu,pyu,hyu,ggyu,ddyu,bbyu,ssyu,jjyu",
-            "ng=ang,ing,ung,eng,ong,eung,eong",
-            "n=an,in,un,en,on,eun,eon",
-            "m=am,im,um,em,om,eum,eom",
-            "l=al,il,ul,el,ol,eul,eol",
-            "p=ap,ip,up,ep,op,eup,eop",
-            "t=at,it,ut,et,ot,eut,eot",
-            "k=ak,ik,uk,ek,ok,euk,eok"
-        };
-
-        // ↓ consonants of romanized CVs.
-        static readonly string[] consonants = new string[] {
-            "ggy=ggya,ggyu,ggye,ggyo,ggyeo",
-            "ggw=ggwa,ggwi,ggwe,ggweo",
-            "gg=gg,gga,ggi,ggu,gge,ggo,ggeu,ggeo",
-            "ddy=ddya,ddyu,ddye,ddyo,ddyeo",
-            "ddw=ddwa,ddwi,ddwe,ddweo",
-            "dd=dd,dda,ddi,ddu,dde,ddo,ddeu,ddeo",
-            "bby=bbya,bbyu,bbye,bbyo,bbyeo",
-            "bbw=bbwa,bbwi,bbwe,bbweo",
-            "bb=bb,bba,bbi,bbu,bbe,bbo,bbeu,bbeo",
-            "ssy=ssya,ssyu,ssye,ssyo,ssyeo",
-            "ssw=sswa,sswi,sswe,ssweo",
-            "ss=ss,ssa,ssi,ssu,sse,sso,sseu,sseo",
-            "gy=gya,gyu,gye,gyo,gyeo",
-            "gw=gwa,gwi,gwe,gweo",
-            "g=g,ga,gi,gu,ge,go,geu,geo",
-            "ny=nya,nyu,nye,nyo,nyeo",
-            "nw=nwa,nwi,nwe,nweo",
-            "n=n,na,ni,nu,ne,no,neu,neo",
-            "dy=dya,dyu,dye,dyo,dyeo",
-            "dw=dwa,dwi,dwe,dweo",
-            "d=d,da,di,du,de,do,deu,deo",
-            "ry=rya,ryu,rye,ryo,ryeo",
-            "rw=rwa,rwi,rwe,rweo",
-            "r=r,ra,ri,ru,re,ro,reu,reo",            
-            "my=mya,myu,mye,myo,myeo",
-            "mw=mwa,mwi,mwe,mweo",
-            "m=m,ma,mi,mu,me,mo,meu,meo",
-            "by=bya,byu,bye,byo,byeo",
-            "bw=bwa,bwi,bwe,bweo",
-            "b=b,ba,bi,bu,be,bo,beu,beo",
-            "sy=sya,syu,sye,syo,syeo",
-            "sw=swa,swi,swe,sweo",
-            "s=s,sa,si,su,se,so,seu,seo",
-            "jy=jya,jyu,jye,jyo,jyeo",
-            "jw=jwa,jwi,jwe,jweo",
-            "j=j,ja,ji,ju,je,jo,jeu,jeo",            
-            "chy=chya,chyu,chye,chyo,chyeo,chwa",
-            "chw=chwi,chwe,chweo",
-            "ch=ch,cha,chi,chu,che,cho,cheu,cheo",
-            "ky=kya,kyu,kye,kyo,kyeo",
-            "kw=kwa,kwi,kwe,kweo",
-            "k=k,ka,ki,ku,ke,ko,keu,keo",
-            "ty=tya,tyu,tye,tyo,tyeo",
-            "tw=twa,twi,twe,tweo",
-            "t=t,ta,ti,tu,te,to,teu,teo",
-            "py=pya,pyu,pye,pyo,pyeo",
-            "pw=pwa,pwi,pwe,pweo",
-            "p=p,pa,pi,pu,pe,po,peu,peo",
-            "hy=hya,hyu,hye,hyo,hyeo",
-            "hw=hwa,hwi,hwe,hweo",
-            "h=h,ha,hi,hu,he,ho,heu,heo"
-            };
-
-        static readonly Dictionary<string, string> vowelLookup;
-        static readonly Dictionary<string, string> consonantLookup;
-
-        string getConsonant(string str) {
-            str = str.Replace('a', ' ');
-            str = str.Replace('i', ' ');
-            str = str.Replace('u', ' ');
-            str = str.Replace('e', ' ');
-            str = str.Replace('o', ' ');
-            str = str.Trim();
-
-            return str;
-        }
-
-        bool isAlphaCon(string consStr) {
-            String str = consStr.Replace('w', ' ');
-            str = consStr.Replace('y', ' ');
-            str = str.Trim();
-        
-            if (str == "gg") { return true; }
-            else if (str == "dd") { return true; }
-            else if (str == "bb") { return true; }
-            else if (str == "ss") { return true; }
-            else if (str == "g") { return true; }
-            else if (str == "n") { return true; }
-            else if (str == "d") { return true; }
-            else if (str == "r") { return true; }
-            else if (str == "m") { return true; }
-            else if (str == "b") { return true; }
-            else if (str == "s") { return true; }
-            else if (str == "j") { return true; }
-            else if (str == "ch") { return true; }
-            else if (str == "k") { return true; }
-            else if (str == "t") { return true; }
-            else if (str == "p") { return true; }
-            else if (str == "h") { return true; }else { return false; }
-        }
-
-        static KoreanCBNNPhonemizer() {
-            vowelLookup = vowels.ToList()
-                .SelectMany(line => {
-                    var parts = line.Split('=');
-                    return parts[1].Split(',').Select(cv => (cv, parts[0]));
-                })
-                .ToDictionary(t => t.Item1, t => t.Item2);
-            consonantLookup = consonants.ToList()
-                .SelectMany(line => {
-                    var parts = line.Split('=');
-                    return parts[1].Split(',').Select(cv => (cv, parts[0]));
-                })
-                .ToDictionary(t => t.Item1, t => t.Item2);
-        }
-
-
-        // ======================================================================================
-
-
+        // 1. Load Singer
         private USinger singer;
-        public override void SetSinger(USinger singer) => this.singer = singer;
+		public override void SetSinger(USinger singer) => this.singer = singer;
+        //
 
-        // make it quicker to check multiple oto occurrences at once rather than spamming if else if
-            private bool checkOtoUntilHit(string[] input, Note note, out UOto oto){
-                oto = default;
+        // 
+        public class Hanguel{
+            const string FIRST_CONSONANTS = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
+            const string MIDDLE_VOWELS = "ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ";
+            const string LAST_CONSONANTS = " ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ"; // The first blank(" ") is needed because Hangeul may not have lastConsonant.
+            
+            const ushort HANGEUL_UNICODE_START = 0xAC00; // unicode index of 가
+            const ushort HANGEUL_UNICODE_END = 0xD79F; // unicode index of 힣
+            
+            static readonly Hashtable basicSounds = new Hashtable() {
+                    ["ㄱ"] = 0,
+                    ["ㄷ"] = 1,
+                    ["ㅂ"] = 2,
+                    ["ㅈ"] = 3,
+                    ["ㅅ"] = 4
+                };
 
-                var attr0 = note.phonemeAttributes?.FirstOrDefault(attr => attr.index == 0) ?? default;
-                var attr1 = note.phonemeAttributes?.FirstOrDefault(attr => attr.index == 1) ?? default;
+            static readonly Hashtable aspirateSounds = new Hashtable() {
+                    [0] = "ㅋ",
+                    [1] = "ㅌ",
+                    [2] = "ㅍ",
+                    [3] = "ㅊ",
+                    [4] = "ㅌ"
+                };
 
-                foreach (string test in input){
-                    if (singer.TryGetMappedOto(test, note.tone + attr0.toneShift, attr0.voiceColor, out oto)){
-                        return true;
+            static readonly Hashtable fortisSounds = new Hashtable() {
+                    [0] = "ㄲ",
+                    [1] = "ㄸ",
+                    [2] = "ㅃ",
+                    [3] = "ㅉ",
+                    [4] = "ㅆ"
+                };
+
+            static readonly Hashtable nasalSounds = new Hashtable() {
+                    ["ㄴ"] = 0,
+                    ["ㅇ"] = 1,
+                    ["ㅁ"] = 2
+                };
+
+            public Hanguel(){}
+
+            public bool isHangeul(string? character){
+                /// <summary>
+                /// true when input character is hangeul.
+                /// </summary>
+                ushort unicodeIndex;
+                bool isHangeul;
+
+                if (character != null) {
+                    unicodeIndex = Convert.ToUInt16(character[0]);
+                    isHangeul = !(unicodeIndex < HANGEUL_UNICODE_START || unicodeIndex > HANGEUL_UNICODE_END); 
+                }
+                else {
+                    isHangeul = false;
+                }
+
+                return isHangeul;
+            }
+
+            public Hashtable separate(string character){
+            /// <summary>
+            /// Separates complete hangeul character in three parts - firstConsonant(초성), middleVowel(중성), lastConsonant(종성).
+            /// </summary>
+            /// <param name="hangeul">A complete Hangeul character.
+            /// (ex) '냥' 
+            /// </param>
+            /// <returns>{firstConsonant(초성), middleVowel(중성), lastConsonant(종성)}
+            /// (ex) {"ㄴ", "ㅑ", "ㅇ"}
+            /// </returns>
+                int hangeulIndex; // unicode index of hangeul - unicode index of '가' (ex) '냥'
+
+                int firstConsonantIndex; // (ex) 2
+                int middleVowelIndex; // (ex) 2
+                int lastConsonantIndex; // (ex) 21
+
+                string firstConsonant; // (ex) "ㄴ"
+                string middleVowel; // (ex) "ㅑ"
+                string lastConsonant; // (ex) "ㅇ"
+
+                Hashtable separatedHangeul; // (ex) {[0]: "ㄴ", [1]: "ㅑ", [2]: "ㅇ"}
+
+
+                hangeulIndex = Convert.ToUInt16(character[0]) - HANGEUL_UNICODE_START; 
+
+
+                lastConsonantIndex = hangeulIndex % 28; // seperates lastConsonant
+                hangeulIndex = (hangeulIndex - lastConsonantIndex) / 28;
+
+                middleVowelIndex = hangeulIndex % 21; // seperates middleVowel
+                hangeulIndex = (hangeulIndex - middleVowelIndex) / 21;
+
+                firstConsonantIndex = hangeulIndex; // there's only firstConsonant now
+
+                firstConsonant = FIRST_CONSONANTS[firstConsonantIndex].ToString();
+                middleVowel = MIDDLE_VOWELS[middleVowelIndex].ToString();
+                lastConsonant = LAST_CONSONANTS[lastConsonantIndex].ToString();
+
+                separatedHangeul = new Hashtable() {
+                [0] = firstConsonant,
+                [1] = middleVowel,
+                [2] = lastConsonant
+                };
+
+                
+                return separatedHangeul;
+            }
+
+            
+            private Hashtable variate(Hashtable firstCharSeparated, Hashtable nextCharSeparated, int returnCharIndex=-1){
+                /// 두 글자에서 음운변동 적용 
+                /// 분리된 걸 해시테이블로 넣어줘야 함
+                /// 맨 끝 노트가 아닌 곳에서만 씀!!! 맨 끝 노트에는 variate(string character) 사용
+                /// 갈아 라고 넣으면 가라 라고 나옴
+                /// 앉아 는 안자 됨
+                /// 맑다 는 막따 됨
+                /// returnChar = -1 : 글자 둘 다 반환
+                /// returnChar = 0 : 첫 번째 글자 반환
+                /// returnChar = 1 : 두 번째 글자 반환
+                /// returnChar 나머지 : 글자 둘 다 반환
+                
+                string firstLastConsonant = (string)firstCharSeparated[2]; // 문래 에서 ㄴ, 맑다 에서 ㄺ
+                string nextFirstConsonant = (string)nextCharSeparated[0]; // 문래 에서 ㄹ, 맑다 에서 ㄷ
+
+                // 1. 연음 적용
+                if ((nextFirstConsonant.Equals("ㅇ")) && (!firstLastConsonant.Equals(" "))){
+                    // ㄳ ㄵ ㄶ ㄺ ㄻ ㄼ ㄽ ㄾ ㄿ ㅀ ㅄ 일 경우에도 분기해서 연음 적용
+                    if (firstLastConsonant.Equals("ㄳ")) {
+                        firstLastConsonant = "ㄱ";
+                        nextFirstConsonant = "ㅅ";
+                        }
+                    else if (firstLastConsonant.Equals("ㄵ")) {
+                        firstLastConsonant = "ㄴ";
+                        nextFirstConsonant = "ㅈ";
+                    }
+                    else if (firstLastConsonant.Equals("ㄶ")) {
+                        firstLastConsonant = "ㄴ";
+                        nextFirstConsonant = "ㅎ";
+                    }
+                    else if (firstLastConsonant.Equals("ㄺ")) {
+                        firstLastConsonant = "ㄹ";
+                        nextFirstConsonant = "ㄱ";
+                    }
+                    else if (firstLastConsonant.Equals("ㄼ")) {
+                        firstLastConsonant = "ㄹ";
+                        nextFirstConsonant = "ㅂ";
+                    }
+                    else if (firstLastConsonant.Equals("ㄽ")) {
+                        firstLastConsonant = "ㄹ";
+                        nextFirstConsonant = "ㅅ";
+                    }
+                    else if (firstLastConsonant.Equals("ㄾ")) {
+                        firstLastConsonant = "ㄹ";
+                        nextFirstConsonant = "ㅌ";
+                    }
+                    else if (firstLastConsonant.Equals("ㄿ")) {
+                        firstLastConsonant = "ㄹ";
+                        nextFirstConsonant = "ㅍ";
+                    }
+                    else if (firstLastConsonant.Equals("ㅀ")) {
+                        firstLastConsonant = "ㄹ";
+                        nextFirstConsonant = "ㅎ";
+                    }
+                    else if (firstLastConsonant.Equals("ㅄ")) {
+                        firstLastConsonant = "ㅂ";
+                        nextFirstConsonant = "ㅅ";
+                    }
+                    else {
+                        // 겹받침 아닐 때 연음
+                        nextFirstConsonant = firstLastConsonant;
+                        firstLastConsonant = " ";
                     }
                 }
 
-                return false;
-            }
 
-        public override Result Process(Note[] notes, Note? prev, Note? next, Note? prevNeighbour, Note? nextNeighbour, Note[] prevNeighbours) {
-            var note = notes[0];
-            var currentUnicode = ToUnicodeElements(note.lyric); // ← unicode of current lyric
-            string currentLyric = note.lyric; // ← string of current lyric
-            var attr0 = note.phonemeAttributes?.FirstOrDefault(attr => attr.index == 0) ?? default;
-            var attr1 = note.phonemeAttributes?.FirstOrDefault(attr => attr.index == 1) ?? default;
-            
-            //-----------------------------------------------------------------------//
-            ////// ***   ↓↓↓ Seperates Lyrics in:                                     //
-            /////           - first consonant letter(초성, "consonant" in below),    //
-            /////           -  middle vowel letter(중성, "vowel" in below),          //
-            /////           -  last consonant letter(종성, "final" in below) ↓↓↓  *** //.
-
-
-            ////  ↓↓ 1 ** Variables for 'Current Notes' ** --
-            // ↓ index of "consonant", "vowel", "final".
-            int CLconsonant = 0;
-            int CLvowel = 0;
-            int CLfinal = 0; 
-
-            // ↓ Use for Temp
-            string[] TCLtemp;
-
-            // ↓ use these for applying phonological rules
-            string TCLconsonant = "";
-            string TCLvowel = "";
-            string TCLfinal = "";
-            string TCLplainvowel = ""; //← Simplifies vowels
-
-            int TCLsemivowel = 0; // semi vowel is 'y', 'w'. [0 means "there's no semi vowel], [1 means "there is 'y'"], [2 means "there is 'w'"]]
-            
-            // ↓ use these for generating phonemes in phonemizers 
-            string TCLconsonantCBNN = "";
-            string TCLvowelCBNN = "";
-
-            ////  ↓↓ 2 ** Variables for 'Next Notes' ** --
-            // ↓ index of "consonant", "vowel", "final".
-            int NLconsonant = 0;
-            int NLvowel = 0;
-            int NLfinal = 0;
-
-            // ↓ Use for Temp
-            string[] TNLtemp;
-
-            // ↓ use these for applying phonological rules
-            string TNLconsonant = "";
-            string TNLvowel = "";
-            string TNLfinal = "";
-            string TNLplainvowel = "";
-
-            // ↓ use these for generating phonemes in phonemizers 
-            string TNLconsonantCBNN = "";
-            //string TNLvowelCBNN = "";
-
-            int TNLsemivowel = 0; // semi vowel is 'y', 'w'. [0 means "there's no semi vowel], [1 means "there is 'y'"], [2 means "there is 'w'"]]
-
-            ////  ↓↓ 3 ** Variables for 'Previous Notes' ** --
-            // ↓ index of "consonant", "vowel", "final".
-            int PLconsonant = 0;
-            int PLvowel = 0;
-            int PLfinal = 0;
-            
-            // ↓ Use for Temp
-            string[] TPLtemp;
-
-            // ↓ use these for applying phonological rules
-            string TPLconsonant = "";
-            string TPLvowel = "";
-            string TPLfinal = "";
-            string TPLplainvowel = "";
-            string TPLplainfinal = "";
-
-            // ↓ use these for generating phonemes in phonemizers 
-            //string TPLconsonantCBNN = "";
-            //string TPLvowelCBNN = "";
-
-            //int TPLsemivowel = 0; // semi vowel is 'y', 'w'. [0 means "there's no semi vowel], [1 means "there is 'y'"], [2 means "there is 'w'"]]
-
-
-            ////  ↓↓ 4 ** Variables for checking notes ** --
-            bool currentHangeul = false;
-            bool prevHangeul = false;
-            bool nextHangeul = false;
-
-            bool prevExist = false;
-            bool nextExist = false;
-
-            char firstCL, firstPL, firstNL;
-            int uCL, uPL, uNL;
-            bool prevIsBreath = false;
-
-
-            // check first lyric
-            firstCL = currentLyric[0];
-            
-            uCL = (int)firstCL;
-            if ((uCL >= hangeulStartIndex) && (uCL <= hangeulEndIndex)) {
-                currentHangeul = true;
-                CLconsonant = (uCL - hangeulStartIndex) / (21 * 28);
-                CLvowel = (uCL - hangeulStartIndex) % (21 * 28) / 28;
-                CLfinal = (uCL - hangeulStartIndex) % 28;
- 
-
-                TCLtemp = naVowels[CLvowel].Split(":");
-                TCLvowel = TCLtemp[1];
-                TCLplainvowel = naPlainVowels[CLvowel];
+                // 1. 유기음화 및 ㅎ탈락 1
+                if ((firstLastConsonant.Equals("ㅎ")) && (! nextFirstConsonant.Equals("ㅅ")) && (basicSounds.Contains(nextFirstConsonant))){
+                    // ㅎ으로 끝나고 다음 소리가 ㄱㄷㅂㅈ이면 / ex) 낳다 = 나타
+                    firstLastConsonant = " ";
+                    nextFirstConsonant = (string)aspirateSounds[basicSounds[nextFirstConsonant]];
+                }
+                else if ((firstLastConsonant.Equals("ㅎ")) && (! nextFirstConsonant.Equals("ㅅ")) && (nextFirstConsonant.Equals("ㅇ"))){
+                    // ㅎ으로 끝나고 다음 소리가 없으면 / ex) 낳아 = 나아
+                    firstLastConsonant = " ";
+                }
                 
-                if (TCLvowel.StartsWith('y')) {TCLsemivowel = 1;} 
-                else if (TCLvowel.StartsWith('w')) {TCLsemivowel = 2;}
+                else if ((firstLastConsonant.Equals("ㄶ")) && (! nextFirstConsonant.Equals("ㅅ")) && (basicSounds.Contains(nextFirstConsonant))){
+                    // ㄶ으로 끝나고 다음 소리가 ㄱㄷㅂㅈ이면 / ex) 많다 = 만타
+                    firstLastConsonant = "ㄴ";
+                    nextFirstConsonant = (string)aspirateSounds[basicSounds[nextFirstConsonant]];
+                }
+                else if ((firstLastConsonant.Equals("ㅀ")) && (! nextFirstConsonant.Equals("ㅅ")) && (basicSounds.Contains(nextFirstConsonant))){
+                    // ㅀ으로 끝나고 다음 소리가 ㄱㄷㅂㅈ이면 / ex) 끓다 = 끌타
+                    firstLastConsonant = "ㄹ";
+                    nextFirstConsonant = (string)aspirateSounds[basicSounds[nextFirstConsonant]];
+                }
                 
-                TCLtemp = naConsonants[CLconsonant].Split(":");
-                TCLconsonant = TCLtemp[1];
 
-                TCLtemp = naFinals[CLfinal].Split(":");
-                TCLfinal = TCLtemp[1];
-
-
-                // TCLconsonant : 현노트 초성    TCLvowel : 현노트 중성    TCLfinal : 현노트 종성
-
-            }
-
-            // 이전 노트 존재 여부 확인 + 이전 노트 첫번째 글자 확인
-            if (prevNeighbour != null) {
-                firstPL = (prevNeighbour?.lyric)[0]; // 가사 받아오기
-                prevExist = true; // 이전 노트 존재한다 반짝
                 
-                uPL = (int)firstPL; // 가사를 int로 변환
-
-                if ((uPL >= hangeulStartIndex) && (uPL <= hangeulEndIndex)) {
-                    prevHangeul = true;
-
-                    PLconsonant = (uPL - hangeulStartIndex) / (21 * 28);
-                    PLvowel = (uPL - hangeulStartIndex) % (21 * 28) / 28;
-                    PLfinal = (uPL - hangeulStartIndex) % 28;
-
-
-                    TPLtemp = naConsonants[PLconsonant].Split(":");
-                    TPLconsonant = TPLtemp[1];
-
-                    TPLtemp = naVowels[PLvowel].Split(":");
-                    TPLvowel = TPLtemp[1];
-                    TPLplainvowel = naPlainVowels[PLvowel];
-
-                    //if (TPLvowel.StartsWith('y')) {TPLsemivowel = 1;} 
-                    //else if (TPLvowel.StartsWith('w')) {TPLsemivowel = 2;}
+                // 2-1. 된소리되기 1
+                if (((firstLastConsonant.Equals("ㄳ")) || (firstLastConsonant.Equals("ㄵ")) || (firstLastConsonant.Equals("ㄽ")) || (firstLastConsonant.Equals("ㄾ")) || (firstLastConsonant.Equals("ㅄ")) || (firstLastConsonant.Equals("ㄼ")) || (firstLastConsonant.Equals("ㄺ")) || (firstLastConsonant.Equals("ㄿ"))) && (basicSounds.Contains(nextFirstConsonant))){
+                    // [ㄻ, (ㄶ, ㅀ)<= 유기음화에 따라 예외] 제외한 겹받침으로 끝나고 다음 소리가 예사소리이면
+                    nextFirstConsonant = (string)fortisSounds[basicSounds[nextFirstConsonant]];
+                }
                 
-                    TPLtemp = naFinals[PLfinal].Split(":");
-                    TPLfinal = TPLtemp[1];
-                    TPLplainfinal = TPLfinal;
+                // 3. 첫 번째 글자의 자음군단순화 및 평파열음화(음절의 끝소리 규칙)
+                if ((firstLastConsonant.Equals("ㄽ")) || (firstLastConsonant.Equals("ㄾ")) || (firstLastConsonant.Equals("ㄼ"))){
+                    firstLastConsonant = "ㄹ";
+                }
+                else if ((firstLastConsonant.Equals("ㄵ")) || (firstLastConsonant.Equals("ㅅ")) || (firstLastConsonant.Equals("ㅆ")) || (firstLastConsonant.Equals("ㅈ")) || (firstLastConsonant.Equals("ㅉ")) || (firstLastConsonant.Equals("ㅊ"))){
+                    firstLastConsonant = "ㄷ";
+                }
+                else if ((firstLastConsonant.Equals("ㅃ")) || (firstLastConsonant.Equals("ㅍ")) || (firstLastConsonant.Equals("ㄿ")) || (firstLastConsonant.Equals("ㅄ"))){
+                    firstLastConsonant = "ㅂ";
+                }
+                else if ((firstLastConsonant.Equals("ㄲ")) || (firstLastConsonant.Equals("ㅋ")) || (firstLastConsonant.Equals("ㄺ")) || (firstLastConsonant.Equals("ㄳ"))){
+                    firstLastConsonant = "ㄱ";
+                }
+                else if ((firstLastConsonant.Equals("ㄻ"))){
+                    firstLastConsonant = "ㅁ";
+                }
+
+                // 2-1. 된소리되기 2
+                if ((basicSounds.Contains(firstLastConsonant)) && (basicSounds.Contains(nextFirstConsonant))){
+                    // 예사소리로 끝나고 다음 소리가 예사소리이면 / ex) 닭장 = 닥짱
+                    nextFirstConsonant = (string)fortisSounds[basicSounds[nextFirstConsonant]];
+                }
+
+                // 1. 유기음화 2
+                if ((basicSounds.Contains(firstLastConsonant)) && (nextFirstConsonant.Equals("ㅎ"))){
+                    // ㄱㄷㅂㅈ(+ㅅ)로 끝나고 다음 소리가 ㅎ이면 / ex) 축하 = 추카, 옷하고 = 오타고
+                    // ㅅ은 미리 평파열음화가 진행된 것으로 보고 ㄷ으로 간주한다
+                    nextFirstConsonant = (string)aspirateSounds[basicSounds[firstLastConsonant]];
+                    firstLastConsonant = " ";
+                }
+                else if (nextFirstConsonant.Equals("ㅎ")){
+                    nextFirstConsonant = "ㅇ";
+                }
+
+
+               // 4. 비음화
+                if ((firstLastConsonant.Equals("ㄱ")) && (! nextFirstConsonant.Equals("ㅇ")) && ((nasalSounds.Contains(nextFirstConsonant)) || (nextFirstConsonant.Equals("ㄹ")))){
+                    // ex) 막론 = 망론 >> 망논 
+                    firstLastConsonant = "ㅇ";
+               }
+                else if ((firstLastConsonant.Equals("ㄷ")) && (! nextFirstConsonant.Equals("ㅇ")) && ((nasalSounds.Contains(nextFirstConsonant)) || (nextFirstConsonant.Equals("ㄹ")))){
+                    // ex) 슬롯머신 = 슬론머신
+                    firstLastConsonant = "ㄴ";
+               }
+                else if ((firstLastConsonant.Equals("ㅂ")) && (! nextFirstConsonant.Equals("ㅇ")) && ((nasalSounds.Contains(nextFirstConsonant)) || (nextFirstConsonant.Equals("ㄹ")))){
+                    // ex) 밥먹자 = 밤먹자 >> 밤먹짜
+                    firstLastConsonant = "ㅁ";
+               }
+
+                // 4'. 유음화
+                if ((firstLastConsonant.Equals("ㄴ")) && nextFirstConsonant.Equals("ㄹ")){
+                    // ex) 만리 = 말리
+                    firstLastConsonant = "ㄹ";
+                }
+                else if ((firstLastConsonant.Equals("ㄹ")) && nextFirstConsonant.Equals("ㄴ")){
+                    // ex) 칼날 = 칼랄
+                    nextFirstConsonant = "ㄹ";
+                }
+
+                // 4''. ㄹ비음화
+                if ((nextFirstConsonant.Equals("ㄹ")) && (nasalSounds.Contains(nextFirstConsonant))){
+                    // ex) 담력 = 담녁
+                    firstLastConsonant = "ㄴ";
+                }
+                
+                
+                // 4'''. 자음동화
+                if ((firstLastConsonant.Equals("ㄴ")) && nextFirstConsonant.Equals("ㄱ")){
+                    // ex) ~라는 감정 = ~라능 감정
+                    firstLastConsonant = "ㅇ";
+                }
+                
+                // return results
+                if (returnCharIndex == 0){
+                    // 첫 번째 글자 반환
+                    return new Hashtable(){
+                        [0] = firstCharSeparated[0], 
+                        [1] = firstCharSeparated[1], 
+                        [2] = firstLastConsonant
+                        };
+                }
+                else if (returnCharIndex == 1){
+                    // 두 번째 글자 반환
+                    return new Hashtable(){
+                        [0] = nextFirstConsonant, 
+                        [1] = nextCharSeparated[1], 
+                        [2] = nextCharSeparated[2]
+                        };
+                }
+                else {
+                    // 두 글자 다 반환
+                    return new Hashtable(){
+                        [0] = firstCharSeparated[0], 
+                        [1] = firstCharSeparated[1], 
+                        [2] = firstLastConsonant, 
+                        [3] = nextFirstConsonant, 
+                        [4] = nextCharSeparated[1], 
+                        [5] = nextCharSeparated[2]};
                 }
             }
 
-            // 다음 노트 존재 여부 확인 + 다음 노트 첫번째 글자 확인
-            if (nextNeighbour != null) {
-                firstNL = (nextNeighbour?.lyric)[0];
-                nextExist = true;
-                uNL = (int)firstNL;
+            private Hashtable variate(string character){
+                /// 맨 끝 노트에서 음운변동 적용하는 함수
+                /// 자음군 단순화와 평파열음화
+                Hashtable separated = separate(character);
 
-                if ((uNL >= hangeulStartIndex) && (uNL <= hangeulEndIndex)) {
-                    nextHangeul = true;
-
-                    NLconsonant = (uNL - hangeulStartIndex) / (21 * 28);
-                    NLvowel = (uNL - hangeulStartIndex) % (21 * 28) / 28;
-                    NLfinal = (uNL - hangeulStartIndex) % 28;
-
-
-                    TNLtemp = naConsonants[NLconsonant].Split(":");
-                    TNLconsonant = TNLtemp[1];
-
-                    TNLtemp = naVowels[NLvowel].Split(":");
-                    TNLvowel = TNLtemp[1];
-                    TNLplainvowel = naPlainVowels[NLvowel];
-
-                    if (TNLvowel.StartsWith('y')) {TNLsemivowel = 1;} 
-                    else if (TNLvowel.StartsWith('w')) {TNLsemivowel = 2;}
-                
-
-                    TNLtemp = naFinals[NLfinal].Split(":");
-                    TNLfinal = TNLtemp[1];
+                if ((separated[2].Equals("ㄽ")) || (separated[2].Equals("ㄾ")) || (separated[2].Equals("ㄼ")) || (separated[2].Equals("ㅀ"))){
+                    separated[2] = "ㄹ";
                 }
+                else if ((separated[2].Equals("ㄵ")) || (separated[2].Equals("ㅅ")) || (separated[2].Equals("ㅆ")) || (separated[2].Equals("ㅈ")) || (separated[2].Equals("ㅉ")) || (separated[2].Equals("ㅊ"))){
+                    separated[2] = "ㄷ";
+                }
+                else if ((separated[2].Equals("ㅃ")) || (separated[2].Equals("ㅍ")) || (separated[2].Equals("ㄿ")) || (separated[2].Equals("ㅄ"))){
+                    separated[2] = "ㅂ";
+                }
+                else if ((separated[2].Equals("ㄲ")) || (separated[2].Equals("ㅋ")) || (separated[2].Equals("ㄺ")) || (separated[2].Equals("ㄳ"))){
+                    separated[2] = "ㄱ";
+                }
+                else if ((separated[2].Equals("ㄻ"))){
+                    separated[2] = "ㅁ";
+                }
+                else if ((separated[2].Equals("ㄶ"))){
+                    separated[2] = "ㄴ";
+                }
+
+
+                return separated;
+
             }
 
-            if (currentHangeul) {
-                // 음운규칙 적용
-                if (currentHangeul) {
+            private Hashtable variate(Hashtable separated){
+                /// 맨 끝 노트에서 음운변동 적용하는 함수
+                
+                if ((separated[2].Equals("ㄽ")) || (separated[2].Equals("ㄾ")) || (separated[2].Equals("ㄼ")) || (separated[2].Equals("ㅀ"))){
+                    separated[2] = "ㄹ";
+                }
+                else if ((separated[2].Equals("ㄵ")) || (separated[2].Equals("ㅅ")) || (separated[2].Equals("ㅆ")) || (separated[2].Equals("ㅈ")) || (separated[2].Equals("ㅉ")) || (separated[2].Equals("ㅊ"))){
+                    separated[2] = "ㄷ";
+                }
+                else if ((separated[2].Equals("ㅃ")) || (separated[2].Equals("ㅍ")) || (separated[2].Equals("ㄿ")) || (separated[2].Equals("ㅄ"))){
+                    separated[2] = "ㅂ";
+                }
+                else if ((separated[2].Equals("ㄲ")) || (separated[2].Equals("ㅋ")) || (separated[2].Equals("ㄺ")) || (separated[2].Equals("ㄳ"))){
+                    separated[2] = "ㄱ";
+                }
+                else if ((separated[2].Equals("ㄻ"))){
+                    separated[2] = "ㅁ";
+                }
+                else if ((separated[2].Equals("ㄶ"))){
+                    separated[2] = "ㄴ";
+                }
 
-                    // 1. 연음법칙 
-                    string tempTCLconsonant = "";
-                    string tempTCLfinal = "";
-                    bool yeoneum = false;
-                    bool yeoneum2 = false;
 
-                    if (prevExist && prevHangeul && (CLconsonant == 11) && (TPLfinal != "")) {
-                        int temp = PLfinal;
-                        if (temp == 1) { TCLtemp = naConsonants[0].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 2) { TCLtemp = naConsonants[1].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 3) { TCLtemp = naConsonants[10].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 4) { TCLtemp = naConsonants[2].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 5) { TCLtemp = naConsonants[12].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 6) { TCLtemp = naConsonants[18].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 7) { TCLtemp = naConsonants[3].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 8) { TCLtemp = naConsonants[5].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 9) { TCLtemp = naConsonants[0].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 10) { TCLtemp = naConsonants[6].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 11) { TCLtemp = naConsonants[7].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 12) { TCLtemp = naConsonants[9].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 13) { TCLtemp = naConsonants[16].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 14) { TCLtemp = naConsonants[17].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 15) { TCLtemp = naConsonants[18].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 16) { TCLtemp = naConsonants[6].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 17) { TCLtemp = naConsonants[7].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 18) { TCLtemp = naConsonants[9].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 19) { TCLtemp = naConsonants[9].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 20) { TCLtemp = naConsonants[10].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 21) { tempTCLconsonant = ""; yeoneum = true; }
-                        else if (temp == 22) { TCLtemp = naConsonants[12].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 23) { TCLtemp = naConsonants[14].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 24) { TCLtemp = naConsonants[15].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 25) { TCLtemp = naConsonants[16].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 26) { TCLtemp = naConsonants[17].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
-                        else if (temp == 27) { TCLtemp = naConsonants[18].Split(":"); tempTCLconsonant = TCLtemp[1]; yeoneum = true; }
+                return separated;
+
+            }
+            private Hashtable variate(string firstChar, string nextChar, int returnCharIndex=0){
+                // 글자 넣어도 쓸 수 있음
+                Hashtable firstCharSeparated = separate(firstChar);
+                Hashtable nextCharSeparated = separate(nextChar);
+                return variate(firstCharSeparated, nextCharSeparated, returnCharIndex);
+            }
+
+            public Hashtable variate(Note? prevNeighbour, Note note, Note? nextNeighbour){
+                // prevNeighbour와 note와 nextNeighbour의 음원변동된 가사를 반환
+                // prevNeighbour : VV 정렬에 사용
+                // nextNeighbour : VC 정렬에 사용
+                // 뒤의 노트가 없으면 리턴되는 값의 6~8번 인덱스가 null로 채워진다.
+                int whereYeonEum = -1;
+                // -1 : 해당사항 없음
+                // 0 : 이전 노트를 연음하지 않음
+                // 1 : 현재 노트를 연음하지 않음
+                string?[] lyrics = new string?[]{prevNeighbour?.lyric, note.lyric, nextNeighbour?.lyric};
+                
+
+                if (! isHangeul(lyrics[0])){
+                    // 앞노트 한국어 아니거나 null일 경우 null처리
+                    if (lyrics[0] != null){
+                        lyrics[0] = null;
                     }
-
-                    if (nextExist && nextHangeul && (TCLfinal != "") && (TNLconsonant == "")) {
-                        int temp = CLfinal;
-
-                        if (temp == 1) { TCLtemp = naConsonants[0].Split(":"); tempTCLfinal = TCLtemp[1]; TCLfinal = ""; yeoneum2 = true; }
-                        else if (temp == 2) { TCLtemp = naConsonants[1].Split(":"); tempTCLfinal = TCLtemp[1]; TCLfinal = ""; yeoneum2 = true; }
-                        else if (temp == 3) { TCLfinal = "k"; yeoneum2 = true; }
-                        else if (temp == 4) { TCLtemp = naConsonants[2].Split(":"); tempTCLfinal = TCLtemp[1]; TCLfinal = ""; yeoneum2 = true; }
-                        else if (temp == 5) { TCLfinal = "n"; yeoneum2 = true; }
-                        else if (temp == 6) { TCLfinal = "n"; yeoneum2 = true; }
-                        else if (temp == 7) { TCLtemp = naConsonants[3].Split(":"); tempTCLfinal = TCLtemp[1]; TCLfinal = ""; yeoneum2 = true; }
-                        else if (temp == 8) { TCLtemp = naConsonants[5].Split(":"); tempTCLfinal = TCLtemp[1]; TCLfinal = ""; yeoneum2 = true; }
-                        else if (temp == 9) { TCLfinal = "l"; yeoneum2 = true; }
-                        else if (temp == 10) { TCLfinal = "l"; yeoneum2 = true; }
-                        else if (temp == 11) { TCLfinal = "l"; yeoneum2 = true; }
-                        else if (temp == 12) { TCLfinal = "l"; yeoneum2 = true; }
-                        else if (temp == 13) { TCLfinal = "l"; yeoneum2 = true; }
-                        else if (temp == 14) { TCLfinal = "l"; yeoneum2 = true; }
-                        else if (temp == 15) { TCLfinal = "l"; yeoneum2 = true; }
-                        else if (temp == 16) { TCLtemp = naConsonants[6].Split(":"); tempTCLfinal = TCLtemp[1]; TCLfinal = ""; yeoneum2 = true; }
-                        else if (temp == 17) { TCLtemp = naConsonants[7].Split(":"); tempTCLfinal = TCLtemp[1]; TCLfinal = ""; yeoneum2 = true; }
-                        else if (temp == 18) { TCLfinal = "p"; yeoneum2 = true; }
-                        else if (temp == 19) { TCLtemp = naConsonants[9].Split(":"); tempTCLfinal = TCLtemp[1]; TCLfinal = ""; yeoneum2 = true; }
-                        else if (temp == 20) { TCLtemp = naConsonants[10].Split(":"); tempTCLfinal = TCLtemp[1]; TCLfinal = ""; yeoneum2 = true; }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             //else if (temp == 21) { TCLtemp = naConsonants[11].Split(":"); tempTCLfinal = TCLtemp[1]; TCLfinal = ""; yeoneum2 = true; }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             else if (temp == 22) { TCLtemp = naConsonants[12].Split(":"); tempTCLfinal = TCLtemp[1]; TCLfinal = ""; yeoneum2 = true; } else if (temp == 23) { TCLtemp = naConsonants[14].Split(":"); tempTCLfinal = TCLtemp[1]; TCLfinal = ""; yeoneum2 = true; } else if (temp == 24) { TCLtemp = naConsonants[15].Split(":"); tempTCLfinal = TCLtemp[1]; TCLfinal = ""; yeoneum2 = true; } else if (temp == 25) { TCLtemp = naConsonants[16].Split(":"); tempTCLfinal = TCLtemp[1]; TCLfinal = ""; yeoneum2 = true; } else if (temp == 26) { TCLtemp = naConsonants[17].Split(":"); tempTCLfinal = TCLtemp[1]; TCLfinal = ""; yeoneum2 = true; } else if (temp == 27) { TCLtemp = naConsonants[18].Split(":"); tempTCLfinal = TCLtemp[1]; TCLfinal = ""; yeoneum2 = true; }
-
+                }
+                else if (! isHangeul(lyrics[2])){
+                    // 뒤노트 한국어 아니거나 null일 경우 null처리
+                    if (lyrics[2] != null){
+                        lyrics[2] = null;
                     }
-                    if (yeoneum) { TCLconsonant = tempTCLconsonant; }
-                    if (yeoneum2) { TNLconsonant = tempTCLfinal; }
-
-
-                    // 2. 격음화/유기음화/거센소리되기
-                    if (prevExist && prevHangeul && (TPLfinal != "")) {
-                        if (((PLfinal == 27) && (CLconsonant == 0)) || ((PLfinal == 6) && (CLconsonant == 0)) || ((PLfinal == 15) && (CLconsonant == 0))) { TCLconsonant = "k"; } else if (((PLfinal == 27) && (CLconsonant == 3)) || ((PLfinal == 6) && (CLconsonant == 3)) || ((PLfinal == 15) && (CLconsonant == 3))) { TCLconsonant = "t"; } else if (((PLfinal == 27) && (CLconsonant == 12)) || ((PLfinal == 6) && (CLconsonant == 12)) || ((PLfinal == 15) && (CLconsonant == 12))) { TCLconsonant = "ch"; } else if (((PLfinal == 27) && (CLconsonant == 9)) || ((PLfinal == 6) && (CLconsonant == 9)) || ((PLfinal == 15) && (CLconsonant == 9))) { TCLconsonant = "ss"; }
-
-                        if ((PLfinal == 1) && (CLconsonant == 18)) { TCLconsonant = "k"; } else if ((PLfinal == 7) && (CLconsonant == 18)) { TCLconsonant = "t"; } else if ((PLfinal == 17) && (CLconsonant == 18)) { TCLconsonant = "p"; } else if ((PLfinal == 22) && (CLconsonant == 18)) { TCLconsonant = "ch"; }
-                    }
-                    if (nextExist && nextHangeul && (TCLfinal != "")) {
-                        if ((NLconsonant == 0) && (CLfinal == 27)) { TCLfinal = ""; TNLconsonant = "k"; } else if ((NLconsonant == 0) && (CLfinal == 6)) { TCLfinal = "n"; TNLconsonant = "k"; } else if ((NLconsonant == 0) && (CLfinal == 15)) { TCLfinal = "l"; TNLconsonant = "k"; } else if ((NLconsonant == 3) && (CLfinal == 27)) { TCLfinal = ""; TNLconsonant = "t"; } else if ((NLconsonant == 3) && (CLfinal == 6)) { TCLfinal = "n"; TNLconsonant = "t"; } else if ((NLconsonant == 3) && (CLfinal == 15)) { TCLfinal = "l"; TNLconsonant = "t"; } else if ((NLconsonant == 12) && (CLfinal == 27)) { TCLfinal = ""; TNLconsonant = "ch"; } else if ((NLconsonant == 12) && (CLfinal == 6)) { TCLfinal = "n"; TNLconsonant = "ch"; } else if ((NLconsonant == 12) && (CLfinal == 15)) { TCLfinal = "l"; TNLconsonant = "ch"; } else if ((NLconsonant == 9) && (CLfinal == 27)) { TCLfinal = ""; TNLconsonant = "ss"; } else if ((NLconsonant == 9) && (CLfinal == 6)) { TCLfinal = "n"; TNLconsonant = "ss"; } else if ((NLconsonant == 9) && (CLfinal == 15)) { TCLfinal = "l"; TNLconsonant = "ss"; }
-
-                        if ((NLconsonant == 2) && (CLfinal == 27)) { TCLfinal = "n"; }
-
-                        if ((NLconsonant == 18) && (CLfinal == 1)) { TCLfinal = ""; TNLconsonant = "k"; } else if ((NLconsonant == 18) && (CLfinal == 7)) { TCLfinal = ""; TNLconsonant = "t"; } else if ((NLconsonant == 18) && (CLfinal == 17)) { TCLfinal = ""; TNLconsonant = "p"; } else if ((NLconsonant == 18) && (CLfinal == 22)) { TCLfinal = ""; TNLconsonant = "ch"; }
-                    }
-
-
-                    // 3. 음절의 끝소리 규칙 예외
-                    if (nextExist && nextHangeul) {
-                        /*
-                        // ㄼ + 자음이 있을 때 => ㄼ : p
-                        if ((CLfinal == 11) && (TCLconsonant != "")) { TCLfinal = "p"; }
-                        */
-                        // ㄺ + ㄱ => ㄺ : ㄹ
-                        if ((CLfinal == 9) && (NLconsonant == 0)) { TCLfinal = "l"; }
-                    }
-
-
-                    // 4. 경음화/된소리되기
-                    if (prevExist && prevHangeul && TPLfinal != "") {
-                        // ㄱㄷㅂ + ㄱㄷㅂㅅㅈ = ㄲㄸㅃㅆㅉ
-                        if (((TPLfinal == "k") && (CLconsonant == 0)) || ((TPLfinal == "t") && (CLconsonant == 0)) || ((TPLfinal == "p") && (CLconsonant == 0))) { TCLconsonant = "gg"; } else if (((TPLfinal == "k") && (CLconsonant == 3)) || ((TPLfinal == "t") && (CLconsonant == 3)) || ((TPLfinal == "p") && (CLconsonant == 3))) { TCLconsonant = "dd"; } else if (((TPLfinal == "k") && (CLconsonant == 7)) || ((TPLfinal == "t") && (CLconsonant == 7)) || ((TPLfinal == "p") && (CLconsonant == 7))) { TCLconsonant = "bb"; } else if (((TPLfinal == "k") && (CLconsonant == 9)) || ((TPLfinal == "t") && (CLconsonant == 9)) || ((TPLfinal == "p") && (CLconsonant == 9))) { TCLconsonant = "ss"; } else if (((TPLfinal == "k") && (CLconsonant == 12)) || ((TPLfinal == "t") && (CLconsonant == 12)) || ((TPLfinal == "p") && (CLconsonant == 12))) { TCLconsonant = "jj"; }
-
                     
-                        // 용언 어간 받침 ㄴㅁ + ㄱㄷㅅㅈ = ㄲㄸㅆㅉ
-                        if(((TPLfinal=="n")&&(CLconsonant==0))|| ((TPLfinal == "m") && (CLconsonant == 0))) { TCLconsonant = "gg"; }
-                        else if (((TPLfinal == "n") && (CLconsonant == 3)) || ((TPLfinal == "m") && (CLconsonant == 3))) { TCLconsonant = "dd"; }
-                        else if (((TPLfinal == "n") && (CLconsonant == 9)) || ((TPLfinal == "m") && (CLconsonant == 9))) { TCLconsonant = "ss"; }
-                        else if (((TPLfinal == "n") && (CLconsonant == 12)) || ((TPLfinal == "m") && (CLconsonant == 12))) { TCLconsonant = "jj"; }
-
-                        // 관형사형 어미ㄹ / 한자어 ㄹ + ㄷㅅㅈ = ㄸㅆㅉ
-                        if ((PLfinal == 8) && (CLconsonant == 3)) { TCLconsonant = "dd"; } else if ((PLfinal == 8) && (CLconsonant == 9)) { TCLconsonant = "ss"; } else if ((PLfinal == 8) && (CLconsonant == 12)) { TCLconsonant = "jj"; }
-
-                        // 어간 받침 ㄼㄾ + ㄱㄷㅅㅈ = ㄲㄸㅆㅉ
-                        if (((PLfinal == 11) && (CLconsonant == 0)) || ((PLfinal == 13) && (CLconsonant == 0))) { TCLconsonant = "gg"; } else if (((PLfinal == 11) && (CLconsonant == 3)) || ((PLfinal == 13) && (CLconsonant == 3))) { TCLconsonant = "dd"; } else if (((PLfinal == 11) && (CLconsonant == 9)) || ((PLfinal == 13) && (CLconsonant == 9))) { TCLconsonant = "ss"; } else if (((PLfinal == 11) && (CLconsonant == 12)) || ((PLfinal == 13) && (CLconsonant == 12))) { TCLconsonant = "jj"; }
-                    }
-
-
-                    // 5. 구개음화 
-                    if (prevExist && prevHangeul && (TPLfinal != "")) {
-                        if ((PLfinal == 7) && (CLconsonant == 11) && (CLvowel == 20)) { TCLconsonant = "j"; } else if ((PLfinal == 25) && (CLconsonant == 11) && (CLvowel == 20)) { TCLconsonant = "ch"; } else if ((PLfinal == 13) && (CLconsonant == 11) && (CLvowel == 20)) { TCLconsonant = "ch"; } else if ((PLfinal == 7) && (CLconsonant == 18) && (CLvowel == 20)) { TCLconsonant = "ch"; }
-                    }
-                    if (nextExist && nextHangeul && (TCLfinal != "")) {
-                        if ((CLfinal == 7) && (NLconsonant == 11) && (NLvowel == 20)) { TCLfinal = ""; } else if ((CLfinal == 25) && (NLconsonant == 11) && (NLvowel == 20)) { TCLfinal = ""; } else if ((CLfinal == 13) && (NLconsonant == 11) && (NLvowel == 20)) { TCLfinal = ""; } else if ((CLfinal == 7) && (NLconsonant == 18) && (NLvowel == 20)) { TCLfinal = ""; }
-
-                    }
-
-
-                    // 6. 비음화
-                    /**
-                    if (prevExist && prevHangeul && (TPLfinal != "")) {
-                        // 한자어 받침 ㅁㅇ + ㄹ = ㄴ
-                        if (((TPLfinal == "m") && (CLconsonant == 5)) || ((TPLfinal == "ng") && (CLconsonant == 5))) { TCLconsonant = "n"; }
-
-                        // 한자어 받침 ㄱㄷㅂ + ㄹ = ㅇㄴㅁ + ㄴ(1)
-                        if (((TPLfinal == "k") && (CLconsonant == 5)) || ((TPLfinal == "t") && (CLconsonant == 5)) || ((TPLfinal == "p") && (CLconsonant == 5))) { TCLconsonant = "n"; }
-                    }
-                    **/
-                    if (nextExist && nextHangeul && (TCLfinal != "")) {
-                        //받침 ㄱㄷㅂ + ㄴㅁ = ㅇㄴㅁ
-                        if (((TCLfinal == "k") && (TNLconsonant == "n")) || ((TCLfinal == "k") && (TNLconsonant == "m"))) { TCLfinal = "ng"; } else if (((TCLfinal == "t") && (TNLconsonant == "n")) || ((TCLfinal == "t") && (TNLconsonant == "m"))) { TCLfinal = "n"; } else if (((TCLfinal == "p") && (TNLconsonant == "n")) || ((TCLfinal == "p") && (TNLconsonant == "m"))) { TCLfinal = "m"; }
-
-                        // 한자어 받침 ㄱㄷㅂ + ㄹ = ㅇㄴㅁ + ㄴ(2)
-                        if ((TCLfinal == "k") && (NLconsonant == 5)) { TCLfinal = "ng"; } else if ((TCLfinal == "t") && (NLconsonant == 5)) { TCLfinal = "n"; } else if ((TCLfinal == "p") && (NLconsonant == 5)) { TCLfinal = "m"; }
-                    }
-
-
-                    // 7. 유음화
-                    /**
-                    if (prevExist && prevHangeul && (TPLfinal != "")) {
-                        if (((PLfinal == 8) && (TCLconsonant == "n")) || ((PLfinal == 13) && (TCLconsonant == "n")) || ((PLfinal == 15) && (TCLconsonant == "n"))) { TCLconsonant = "r"; }
-                    }
-                    if (nextExist && nextHangeul && (TCLfinal != "")) {
-                        if ((TCLfinal == "n") && (TNLconsonant == "r")) { TCLfinal = "l"; }
-                    }
-                    **/
-
-
-
-                    // 8. 받침 + ㄹ = ㄹㄹ
-
-
-
-                    // consonant에 변경 사항이 있을 때
-                    //if (prevExist && prevHangeul) {
-
-
-                        // 비음화
-                        // (1) ㄱ(ㄲㅋㄳㄺ)
-                        //     ㄷ(ㅅ,ㅆ,ㅈ,ㅊ,ㅌ,ㅎ)
-                        //     ㅂ(ㅍ,ㄼ,ㄿ,ㅄ)
-
-
-                    //}
-                    // final에 변경 사항이 있을 때
-
-
                 }
 
-                bool isLastBatchim = false;
-
-                // vowels do not have suffixed phonemes in CBNN, so use suffixed '- h'~ phonemes instead. 
-                if (!prevExist && TCLconsonant == "" && TCLfinal != "" && TCLvowel != "") {
-                    TCLconsonant = "h";
+                if ((lyrics[0] != null) && (lyrics[0].EndsWith('.'))){
+                    /// 앞노트 . 기호로 끝남 ex) [냥.]냥냥
+                    lyrics[0] = lyrics[0].TrimEnd('.');
+                    whereYeonEum = 0;
                 }
-                
-                // to make FC's length to 1 if FC comes final (=no next note)
-                if (!nextHangeul && TCLfinal != "" &&TCLvowel != "") {
-                    isLastBatchim = true;
+                else if ((lyrics[1] != null) && (lyrics[1].EndsWith('.'))){
+                    /// 중간노트 . 기호로 끝남 ex) 냥[냥.]냥
+                    /// 음운변동 없이 연음만 적용
+                    lyrics[1] = lyrics[1].TrimEnd('.');
+                    whereYeonEum = 1;
+                }
+                else if ((lyrics[2] != null) && (lyrics[2].EndsWith('.'))){
+                    /// 뒤노트 . 기호로 끝남 ex) 냥냥[냥.]
+                    /// 중간노트의 발음에 관여하지 않으므로 간단히 . 만 지워주면 된다
+                    lyrics[2] = lyrics[2].TrimEnd('.');
                 }
 
-                // To use semivowels in VC (ex: [- ga][a gy][gya], ** so not [- ga][a g][gya] **)
-                if (TCLsemivowel == 1 && TPLplainvowel != "i" && TPLplainvowel != "eu") {TCLconsonantCBNN = TCLconsonant + 'y';}
-                else if (TCLsemivowel == 2 && TPLplainvowel != "u" && TPLplainvowel != "o" && TPLplainvowel != "eu") {TCLconsonantCBNN = TCLconsonant + 'w';}
-                else {TCLconsonantCBNN = TCLconsonant;}
+                // 음운변동 적용 --
+                if ((lyrics[0] == null) && (lyrics[2] != null)){
+                    /// 앞이 없고 뒤가 있음
+                    /// null[냥]냥
+                    if (whereYeonEum == 1){
+                        // 현재 노트에서 단어가 끝났다고 가정
+                        Hashtable result = variate(separate(lyrics[0]), variate(lyrics[1]), 0); // 첫 글자
+                        Hashtable thisNoteSeparated = variate(variate(separate(lyrics[0]), variate(lyrics[1]), 1), separate(lyrics[2]), -1); // 현 글자 / 끝글자처럼 음운변동시켜서 음원변동 한 번 더 하기
 
-                if (TNLsemivowel == 1 && TCLplainvowel != "i" && TCLplainvowel != "eu") {TNLconsonantCBNN = TNLconsonant + 'y';}
-                else if (TNLsemivowel == 2 && TCLplainvowel != "u" && TCLplainvowel != "o" && TCLplainvowel != "eu") {TNLconsonantCBNN = TNLconsonant + 'w';}
-                else {TNLconsonantCBNN = TNLconsonant;}
+                        result.Add(3, thisNoteSeparated[0]); // 현 글자
+                        result.Add(4, thisNoteSeparated[1]);
+                        result.Add(5, thisNoteSeparated[2]);
 
-                
-                
-                //To set suffix of CV, according to next-coming batchim.
-                if (TCLfinal == "") {
-                    TCLvowelCBNN = TCLvowel;}
-                else if (TCLfinal == "m" && TCLconsonantCBNN != "" || TCLfinal == "m" && TCLconsonantCBNN == "" && TCLsemivowel != 0) {
-                    TCLvowelCBNN = TCLvowel + '1';}
-                else if (TCLfinal == "n" && TCLconsonantCBNN != ""  || TCLfinal == "n" && TCLconsonantCBNN == "" && TCLsemivowel != 0) {
-                    TCLvowelCBNN = TCLvowel + '2';}
-                else if (TCLfinal == "ng" && TCLconsonantCBNN != "" || TCLfinal == "ng" && TCLconsonantCBNN == "" && TCLsemivowel != 0) {
-                    TCLvowelCBNN = TCLvowel + '3';} 
-                else if (TCLfinal == "l" && TCLconsonantCBNN != "" || TCLfinal == "l" && TCLconsonantCBNN == "" && TCLsemivowel != 0) {
-                    TCLvowelCBNN = TCLvowel + '4';}
-                else if (TCLfinal == "k" && TCLconsonantCBNN != "" || TCLfinal == "k" && TCLconsonantCBNN == "" && TCLsemivowel != 0) {
-                    TCLvowelCBNN = TCLvowel;}
-                else if (TCLfinal == "t" && TCLconsonantCBNN != "" || TCLfinal == "t" && TCLconsonantCBNN == "" && TCLsemivowel != 0) {
-                    TCLvowelCBNN = TCLvowel + '3';}
-                else if (TCLfinal == "p" && TCLconsonantCBNN != "" || TCLfinal == "p" && TCLconsonantCBNN == "" && TCLsemivowel != 0) {
-                    TCLvowelCBNN = TCLvowel + '1';}
-                else {TCLvowelCBNN = TCLvowel;}
+                        result.Add(6, thisNoteSeparated[3]); // 뒤 글자 없음
+                        result.Add(7, thisNoteSeparated[4]);
+                        result.Add(8, thisNoteSeparated[5]);
 
-
-                string CV = (TCLconsonant + TCLvowelCBNN);
-                string VC = "";
-                bool comesSemivowelWithoutVC = false;
-                
-
-                if (TCLsemivowel != 0 && TCLconsonant == ""){
-                    comesSemivowelWithoutVC = true;
-                }
-                if (nextExist && (TCLfinal == "")) { VC = TCLplainvowel + " " + TNLconsonantCBNN; }
-
-                //for Vowel VCV
-                if (prevExist && TPLfinal == "" && TCLconsonantCBNN == "" && !comesSemivowelWithoutVC) {CV = TPLplainvowel + " " + TCLvowel;}
-
-                
-                string FC = "";
-                if (TCLfinal != "") { FC = TCLplainvowel + TCLfinal; }
-
-
-                // for [- XX] phonemes
-                if (!prevExist || prevIsBreath || TPLfinal != "" && TCLconsonant != "r" && TCLconsonant != "n" && TCLconsonant != "" ) { CV = $"- {CV}"; }
-
-                
-                // 만약 받침이 있다면
-                if (FC != "") {
-                    int totalDuration = notes.Sum(n => n.duration);
-                    int fcLength = totalDuration / 3;
-
-                    if (isLastBatchim) {
-                        fcLength = 1;
+                        return result;
                     }
-                    else if ((TCLfinal == "k") || (TCLfinal == "p") || (TCLfinal == "t")) { 
-                        fcLength = totalDuration / 2;}
-                    else if ((TCLfinal == "l") || (TCLfinal == "ng") || (TCLfinal == "m")) { 
-                        fcLength = totalDuration / 5;}
-                    else if ((TCLfinal == "n")) {
-                        fcLength = totalDuration / 3;
-                    }
+                    else if (whereYeonEum == 0){
+                        // 앞 노트에서 단어가 끝났다고 가정 
+                        Hashtable result = variate(variate(lyrics[0]), separate(lyrics[1]), 0); // 첫 글자
+                        Hashtable thisNoteSeparated = variate(variate(variate(lyrics[0]), separate(lyrics[1]), 1), separate(lyrics[2]), -1); // 첫 글자와 현 글자 / 앞글자를 끝글자처럼 음운변동시켜서 음원변동 한 번 더 하기
 
-                    if (singer.TryGetMappedOto(CV, note.tone + attr0.toneShift, attr0.voiceColor, out var oto1) && singer.TryGetMappedOto(FC, note.tone + attr0.toneShift, attr0.voiceColor, out var oto2)) {
-                        CV = oto1.Alias;
-                        FC = oto2.Alias;
-                        return new Result {
-                            phonemes = new Phoneme[] {
-                                new Phoneme() {
-                                    phoneme = CV,
-                                },
-                                new Phoneme() {
-                                    phoneme = FC,
-                                    position = totalDuration - fcLength,
-                                }
-                            },
+                        result.Add(3, thisNoteSeparated[0]); // 현 글자
+                        result.Add(4, thisNoteSeparated[1]);
+                        result.Add(5, thisNoteSeparated[2]);
+
+                        result.Add(6, thisNoteSeparated[3]); // 뒤 글자 없음
+                        result.Add(7, thisNoteSeparated[4]);
+                        result.Add(8, thisNoteSeparated[5]);
+
+                        return result;
+                    }
+                    else{
+                        Hashtable result = new Hashtable() {
+                        [0] = "null", // 앞 글자 없음
+                        [1] = "null",
+                        [2] = "null"
+                    };
+
+                    Hashtable thisNoteSeparated = variate(lyrics[1], lyrics[2], -1); // 현글자 뒤글자
+                    
+                    result.Add(3, thisNoteSeparated[0]); // 현 글자
+                    result.Add(4, thisNoteSeparated[1]);
+                    result.Add(5, thisNoteSeparated[2]);
+
+                    result.Add(6, thisNoteSeparated[3]); // 뒤 글자 없음
+                    result.Add(7, thisNoteSeparated[4]);
+                    result.Add(8, thisNoteSeparated[5]);
+                    
+                    return result;
+                    }
+                }
+                else if ((lyrics[0] != null) && (lyrics[2] == null)){
+                    /// 앞이 있고 뒤는 없음
+                    /// 냥[냥]null
+                    if (whereYeonEum == 1){
+                        // 현재 노트에서 단어가 끝났다고 가정
+                        Hashtable result = variate(separate(lyrics[0]), variate(lyrics[1]), 0); // 첫 글자
+                        Hashtable thisNoteSeparated = variate(variate(separate(lyrics[0]), variate(lyrics[1]), 1)); // 현 글자 / 끝글자처럼 음운변동시켜서 음원변동 한 번 더 하기
+
+                        result.Add(3, thisNoteSeparated[0]); // 현 글자
+                        result.Add(4, thisNoteSeparated[1]);
+                        result.Add(5, thisNoteSeparated[2]);
+
+                        result.Add(6, "null"); // 뒤 글자 없음
+                        result.Add(7, "null");
+                        result.Add(8, "null");
+
+                        return result;
+                    }
+                    else if (whereYeonEum == 0){
+                        // 앞 노트에서 단어가 끝났다고 가정 
+                        Hashtable result = variate(variate(lyrics[0]), separate(lyrics[1]), 0); // 첫 글자
+                        Hashtable thisNoteSeparated = variate(variate(variate(lyrics[0]), separate(lyrics[1]), 1)); // 첫 글자와 현 글자 / 앞글자를 끝글자처럼 음운변동시켜서 음원변동 한 번 더 하기
+
+                        result.Add(3, thisNoteSeparated[0]); // 현 글자
+                        result.Add(4, thisNoteSeparated[1]);
+                        result.Add(5, thisNoteSeparated[2]);
+
+                        result.Add(6, "null"); // 뒤 글자 없음
+                        result.Add(7, "null");
+                        result.Add(8, "null");
+
+                        return result;
+                    }
+                    else{
+                        Hashtable result = variate(lyrics[0], lyrics[1], 0); // 첫 글자
+                        Hashtable thisNoteSeparated = variate(variate(lyrics[0], lyrics[1], 1)); // 첫 글자와 현 글자 / 뒷글자 없으니까 글자 혼자 있는걸로 음운변동 한 번 더 시키기
+                        
+                        result.Add(3, thisNoteSeparated[0]); // 현 글자
+                        result.Add(4, thisNoteSeparated[1]);
+                        result.Add(5, thisNoteSeparated[2]);
+
+                        result.Add(6, "null"); // 뒤 글자 없음
+                        result.Add(7, "null");
+                        result.Add(8, "null");
+
+                        return result;
+                    }
+                    
+                }
+                else if ((lyrics[0] != null) && (lyrics[2] != null)){
+                    /// 앞도 있고 뒤도 있음
+                    /// 냥[냥]냥
+                    if (whereYeonEum == 1){
+                        // 현재 노트에서 단어가 끝났다고 가정 / 무 [릎.] 위
+                        Hashtable result = variate(separate(lyrics[0]), variate(lyrics[1]), 1); // 첫 글자
+                        Hashtable thisNoteSeparated = variate(variate(separate(lyrics[0]), variate(lyrics[1]), 1), separate(lyrics[2]), -1);// 현글자와 다음 글자 / 현 글자를 끝글자처럼 음운변동시켜서 음원변동 한 번 더 하기
+                        
+                        result.Add(3, thisNoteSeparated[0]); // 현 글자
+                        result.Add(4, thisNoteSeparated[1]);
+                        result.Add(5, thisNoteSeparated[2]);
+
+                        result.Add(6, thisNoteSeparated[3]); // 뒤 글자
+                        result.Add(7, thisNoteSeparated[4]);
+                        result.Add(8, thisNoteSeparated[5]);
+
+                        return result; 
+                    }
+                    else if (whereYeonEum == 0){
+                        // 앞 노트에서 단어가 끝났다고 가정 / 릎. [위] 놓
+                        Hashtable result = variate(variate(lyrics[0]), separate(lyrics[1]), 0); // 첫 글자
+                        Hashtable thisNoteSeparated = variate(variate(variate(lyrics[0]), separate(lyrics[1]), 1), separate(lyrics[2]), -1); // 현 글자와 뒤 글자 / 앞글자 끝글자처럼 음운변동시켜서 음원변동 한 번 더 하기
+                        
+                        result.Add(3, thisNoteSeparated[0]); // 현 글자
+                        result.Add(4, thisNoteSeparated[1]);
+                        result.Add(5, thisNoteSeparated[2]);
+
+                        result.Add(6, thisNoteSeparated[3]); // 뒤 글자
+                        result.Add(7, thisNoteSeparated[4]);
+                        result.Add(8, thisNoteSeparated[5]);
+
+                        return result;
+                    }
+                    else{
+                        Hashtable result = variate(lyrics[0], lyrics[1], 0);
+                        Hashtable thisNoteSeparated = variate(variate(lyrics[0], lyrics[1], 1), separate(lyrics[2]), -1);
+
+                        result.Add(3, thisNoteSeparated[0]); // 현 글자
+                        result.Add(4, thisNoteSeparated[1]);
+                        result.Add(5, thisNoteSeparated[2]);
+
+                        result.Add(6, thisNoteSeparated[3]); // 뒤 글자
+                        result.Add(7, thisNoteSeparated[4]);
+                        result.Add(8, thisNoteSeparated[5]);
+
+                        return result;
+                    }
+                }
+                else {
+                    /// 앞이 없고 뒤도 없음
+                    /// null[냥]null
+                    
+                    Hashtable result = new Hashtable(){
+                        // 첫 글자 >> 비어 있음
+                        [0] = "null",
+                        [1] = "null",
+                        [2] = "null"
+                    };
+
+                    Hashtable thisNoteSeparated = variate(lyrics[1]); // 현 글자
+
+                    result.Add(3, thisNoteSeparated[0]); // 현 글자
+                    result.Add(4, thisNoteSeparated[1]);
+                    result.Add(5, thisNoteSeparated[2]);
+
+                        
+                    result.Add(6, "null"); // 뒤 글자 비어있음
+                    result.Add(7, "null");
+                    result.Add(8 , "null");
+
+                    return result;
+                }
+                
+            }
+            
+        }
+        
+        private class CBNN{
+            static readonly string[] PHONEME_TYPES = new string[]{
+                "none", "voiced", "aspirate", "fortis", "fricative", "liquid", "nasal"
+                }; // 음소없음, 유성음, 파열음&파찰음, 경음, 마찰음, 유음, 비음 
+            static readonly Dictionary<string, string[]> FIRST_CONSONANTS = new Dictionary<string, string[]>(){
+                {"ㄱ", new string[2]{"g", "voiced"}}, 
+                {"ㄲ", new string[2]{"gg", "fortis"}}, 
+                {"ㄴ", new string[2]{"n", "nasal"}}, 
+                {"ㄷ", new string[2]{"d", "voiced"}}, 
+                {"ㄸ", new string[2]{"dd", "fortis"}}, 
+                {"ㄹ", new string[2]{"r", "liquid"}}, 
+                {"ㅁ", new string[2]{"m", "nasal"}}, 
+                {"ㅂ", new string[2]{"b", "voiced"}}, 
+                {"ㅃ", new string[2]{"bb", "fortis"}}, 
+                {"ㅅ", new string[2]{"s", "fricative"}}, 
+                {"ㅆ", new string[2]{"ss", "fricative"}}, 
+                {"ㅇ", new string[2]{"", "none"}}, 
+                {"ㅈ", new string[2]{"j", "voiced"}}, 
+                {"ㅉ", new string[2]{"jj", "fortis"}}, 
+                {"ㅊ", new string[2]{"ch", "aspirate"}}, 
+                {"ㅋ", new string[2]{"k", "aspirate"}}, 
+                {"ㅌ", new string[2]{"t", "aspirate"}}, 
+                {"ㅍ", new string[2]{"p", "aspirate"}}, 
+                {"ㅎ", new string[2]{"h", "fricative"}},
+                {" ", new string[2]{"", "null"}},
+                {"null", new string[2]{"", ""}} // 뒤 글자가 없을 때를 대비
+                }; 
+
+            static readonly Dictionary<string, string[]> MIDDLE_VOWELS = new Dictionary<string, string[]>(){
+                {"ㅏ", new string[3]{"a", "", "a"}}, 
+                {"ㅐ", new string[3]{"e", "", "e"}}, 
+                {"ㅑ", new string[3]{"ya", "y", "a"}}, 
+                {"ㅒ", new string[3]{"ye", "y", "e"}}, 
+                {"ㅓ", new string[3]{"eo", "", "eo"}}, 
+                {"ㅔ", new string[3]{"e", "", "e"}}, 
+                {"ㅕ", new string[3]{"yeo", "y", "eo"}}, 
+                {"ㅖ", new string[3]{"ye", "y", "e"}}, 
+                {"ㅗ", new string[3]{"o", "", "o"}}, 
+                {"ㅘ", new string[3]{"wa", "w", "a"}}, 
+                {"ㅙ", new string[3]{"we", "w", "e"}}, 
+                {"ㅛ", new string[3]{"yo", "y", "o"}}, 
+                {"ㅜ", new string[3]{"u", "", "u"}}, 
+                {"ㅝ", new string[3]{"weo", "w", "eo"}}, 
+                {"ㅞ", new string[3]{"we", "w", "e"}}, 
+                {"ㅟ", new string[3]{"wi", "w", "i"}}, 
+                {"ㅠ", new string[3]{"yu", "y", "u"}}, 
+                {"ㅡ", new string[3]{"eu", "", "eu"}}, 
+                {"ㅢ", new string[3]{"i", "", "i"}}, // ㅢ는 ㅣ로 발음
+                {"ㅣ", new string[3]{"i", "", "i"}},
+                {" ", new string[3]{"", "", ""}},
+                {"null", new string[3]{"", "", ""}} // 뒤 글자가 없을 때를 대비
+                }; 
+
+            static readonly Dictionary<string, string[]> LAST_CONSONANTS = new Dictionary<string, string[]>(){
+                 //ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ
+                {"ㄱ", new string[2]{"k", ""}}, 
+                {"ㄲ", new string[2]{"k", ""}}, 
+                {"ㄳ", new string[2]{"k", ""}}, 
+                {"ㄴ", new string[2]{"n", "2"}}, 
+                {"ㄵ", new string[2]{"n", "2"}}, 
+                {"ㄶ", new string[2]{"n", "2"}}, 
+                {"ㄷ", new string[2]{"t", "1"}}, 
+                {"ㄹ", new string[2]{"l", "4"}}, 
+                {"ㄺ", new string[2]{"k", ""}}, 
+                {"ㄻ", new string[2]{"m", "1"}}, 
+                {"ㄼ", new string[2]{"l", "4"}}, 
+                {"ㄽ", new string[2]{"l", "4"}}, 
+                {"ㄾ", new string[2]{"l", "4"}}, 
+                {"ㄿ", new string[2]{"p", "1"}}, 
+                {"ㅀ", new string[2]{"l", "4"}}, 
+                {"ㅁ", new string[2]{"m", "1"}}, 
+                {"ㅂ", new string[2]{"p", "1"}}, 
+                {"ㅄ", new string[2]{"p", "1"}}, 
+                {"ㅅ", new string[2]{"t", "1"}},
+                {"ㅆ", new string[2]{"t", "1"}}, 
+                {"ㅇ", new string[2]{"ng", "3"}}, 
+                {"ㅈ", new string[2]{"t", "1"}}, 
+                {"ㅊ", new string[2]{"t", "1"}}, 
+                {"ㅋ", new string[2]{"k", ""}}, 
+                {"ㅌ", new string[2]{"t", "1"}}, 
+                {"ㅍ", new string[2]{"p", "1"}}, 
+                {"ㅎ", new string[2]{"t", "1"}},
+                {" ", new string[2]{"", ""}},
+                {"null", new string[2]{"", ""}} // 뒤 글자가 없을 때를 대비
+                };
+            private Hanguel hanguel = new Hanguel();
+
+            public CBNN(){}
+            public Hashtable convertForCBNN(Hashtable separated){
+                // Hangeul.separate() 함수 등을 사용해 [초성 중성 종성]으로 분리된 결과물을 CBNN식으로 변경
+                // VV 음소를 위해 앞의 노트의 변동된 결과까지 반환한다
+                // vc 음소를 위해 뒤의 노트의 변동된 결과까지 반환한다
+                Hashtable separatedConvertedForCBNN;
+
+                separatedConvertedForCBNN = new Hashtable(){
+                    [0] = FIRST_CONSONANTS[(string)separated[0]][0], //n
+                    [1] = MIDDLE_VOWELS[(string)separated[1]][1], // y
+                    [2] = MIDDLE_VOWELS[(string)separated[1]][2], // a
+                    [3] = LAST_CONSONANTS[(string)separated[2]][1], // 3
+                    [4] = LAST_CONSONANTS[(string)separated[2]][0], // ng
+
+                    [5] = FIRST_CONSONANTS[(string)separated[3]][0],
+                    [6] = MIDDLE_VOWELS[(string)separated[4]][1],
+                    [7] = MIDDLE_VOWELS[(string)separated[4]][2],
+                    [8] = LAST_CONSONANTS[(string)separated[5]][1],
+                    [9] = LAST_CONSONANTS[(string)separated[5]][0],
+
+                    [10] = FIRST_CONSONANTS[(string)separated[6]][0],
+                    [11] = MIDDLE_VOWELS[(string)separated[7]][1],
+                    [12] = MIDDLE_VOWELS[(string)separated[7]][2],
+                    [13] = LAST_CONSONANTS[(string)separated[8]][1],
+                    [14] = LAST_CONSONANTS[(string)separated[8]][0]
+                    };
+
+                return separatedConvertedForCBNN;
+            }
+
+            public Hashtable convertForCBNN(string character){
+                // 글자를 넣으면 [초성 중성 종성]으로 분리된 결과물을 CBNN식으로 변경
+                Hashtable separatedConvertedForCBNN;
+
+                Hashtable separated = hanguel.separate(character);
+
+                separatedConvertedForCBNN = new Hashtable(){
+                    // 앞의 노트
+                    [0] = FIRST_CONSONANTS[(string)separated[0]][0], //n
+                    [1] = MIDDLE_VOWELS[(string)separated[1]][1], // y
+                    [2] = MIDDLE_VOWELS[(string)separated[1]][2], // a
+                    [3] = LAST_CONSONANTS[(string)separated[2]][1], // 3
+                    [4] = LAST_CONSONANTS[(string)separated[2]][0], // ng
+
+                    // 현재 노트
+                    [5] = FIRST_CONSONANTS[(string)separated[3]][0],
+                    [6] = MIDDLE_VOWELS[(string)separated[4]][1],
+                    [7] = MIDDLE_VOWELS[(string)separated[4]][2],
+                    [8] = LAST_CONSONANTS[(string)separated[5]][1],
+                    [9] = LAST_CONSONANTS[(string)separated[5]][0],
+
+                    // 뒤의 노트
+                    [10] = FIRST_CONSONANTS[(string)separated[6]][0],
+                    [11] = MIDDLE_VOWELS[(string)separated[7]][1],
+                    [12] = MIDDLE_VOWELS[(string)separated[7]][2],
+                    [13] = LAST_CONSONANTS[(string)separated[8]][1],
+                    [14] = LAST_CONSONANTS[(string)separated[8]][0]
+                };
+
+                return separatedConvertedForCBNN;
+            }
+
+            public Hashtable convertForCBNN(Note? prevNeighbour, Note note, Note? nextNeighbour){
+                // Hangeul.separate() 함수 등을 사용해 [초성 중성 종성]으로 분리된 결과물을 CBNN식으로 변경
+                // 이 함수만 불러서 모든 것을 함 (1) [냥]냥
+                return convertForCBNN(hanguel.variate(prevNeighbour, note, nextNeighbour));
+                
+            }
+            
+        }
+        
+
+        
+
+
+        // 2. Return Phonemes
+        public override Result Process(Note[] notes, Note? prev, Note? next, Note? prevNeighbour, Note? nextNeighbour, Note[] prevNeighbours){
+            Hashtable cbnnPhonemes;
+
+            Note note = notes[0];
+            string lyric = note.lyric;
+
+            Note? prevNote = prevNeighbour; // null or Note
+            Note thisNote = note;
+            Note? nextNote = nextNeighbour; // null or Note
+
+            int totalDuration = notes.Sum(n => n.duration); 
+            int vcLength = 120; // TODO
+            int vcLengthShort = 90;
+            Hanguel hanguel = new Hanguel();
+            CBNN CBNN = new CBNN();
+            ///
+
+
+            if (hanguel.isHangeul(lyric)){
+                cbnnPhonemes = CBNN.convertForCBNN(prevNote, thisNote, nextNote); 
+                // 음운변동이 진행됨 => 위에서 반환된 음소로 전부 때울 예정
+
+                // ex 냥냐 (nya3 ang nya)
+                string thisFirstConsonant = (string)cbnnPhonemes[5]; // n
+                string thisVowelHead = (string)cbnnPhonemes[6]; // y
+                string thisVowelTail = (string)cbnnPhonemes[7]; // a
+                string thisSuffix = (string)cbnnPhonemes[8]; // 3
+                string thisLastConsonant = (string)cbnnPhonemes[9]; // ng
+
+                string nextFirstConsonant; // VC음소 만들 때 쓰는 다음 노트의 자음 음소 / CVC 음소와는 관계 없음 // ny
+                string nextVowelHead = (string)cbnnPhonemes[11]; // 다음 노트 모음의 머리 음소 / y
+
+                string prevVowelTail = (string)cbnnPhonemes[2]; // VV음소 만들 때 쓰는 이전 노트의 모음 음소 / CV, CVC 음소와는 관계 없음 // a
+                string prevLastConsonant = (string)cbnnPhonemes[4]; // VV음소 만들 때 쓰는 이전 노트의 받침 음소
+                string prevSuffix = (string)cbnnPhonemes[3]; // VV음소 만들 때 쓰는 이전 노트의 접미사 / 3
+
+                string VV = $"{prevVowelTail} {thisVowelTail}"; // i a
+                string CV = $"{thisFirstConsonant}{thisVowelHead}{thisVowelTail}{thisSuffix}"; // nya4
+                string cVC = $"{thisVowelTail}{thisLastConsonant}"; // ang 
+
+
+                int cVCLength; // 받침 종류에 따라 길이가 달라짐 / 이웃이 있을 때에만 사용
+
+                if (thisLastConsonant.Equals("l")){
+                    // ㄹ받침
+                    cVCLength = totalDuration / 2;
+                }
+                else if (thisLastConsonant.Equals("n")){
+                    // ㄴ받침
+                    cVCLength = 210;
+                }
+                else if (thisLastConsonant.Equals("ng")){
+                    // ㅇ받침
+                    cVCLength = 230;
+                }
+                else if (thisLastConsonant.Equals("m")){
+                    // ㅁ받침
+                    cVCLength = 280;
+                }
+                else if (thisLastConsonant.Equals("k")){
+                    // ㄱ받침
+                    cVCLength = totalDuration / 2;
+                }
+                else if (thisLastConsonant.Equals("t")){
+                    // ㄷ받침
+                    cVCLength = totalDuration / 2;
+                }
+                else if (thisLastConsonant.Equals("p")){
+                    cVCLength = totalDuration / 2;
+                }
+                else{
+                    // 나머지
+                    cVCLength = totalDuration / 3;
+                }
+
+                if (thisVowelTail.Equals("u")){
+                    cVCLength += 50; // 모음이 u일때엔 cVC의 발음 길이가 더 길어짐
+                    vcLength += 50;
+                }
+
+                
+                if ((nextVowelHead.Equals("w")) && (thisVowelTail.Equals("eu"))) {
+                    nextFirstConsonant = $"{(string)cbnnPhonemes[10]}"; // VC에 썼을 때 eu bw 대신 eu b를 만들기 위함
+                }
+                else if ((thisVowelTail.Equals("y") && (thisVowelTail.Equals("i")))){
+                    nextFirstConsonant = $"{(string)cbnnPhonemes[10]}"; // VC에 썼을 때 i by 대신 i b를 만들기 위함
+                }
+                else {
+                    nextFirstConsonant = $"{(string)cbnnPhonemes[10]}{(string)cbnnPhonemes[11]}"; // 나머지... ex) ny
+                }
+
+                string VC = $"{thisVowelTail} {nextFirstConsonant}"; // 다음에 이어질 VV, CVC에게는 해당 없음
+
+                
+                if ((prevNeighbour == null) && (nextNeighbour == null)){
+                    // 이웃이 없음 / 냥
+                    
+                    if (thisLastConsonant.Equals("")){ // 이웃 없고 받침 없음 / 냐
+                    
+                        return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{thisVowelTail} -",
+                            position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)},
+                            }
                         };
                     }
-
-                    
-                    
+                    else if ((thisLastConsonant.Equals("n")) || (thisLastConsonant.Equals("l")) || (thisLastConsonant.Equals("ng")) || (thisLastConsonant.Equals("m"))){
+                        // 이웃 없고 받침 있음 - ㄴㄹㅇㅁ / 냥
+                        return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - Math.Min(totalDuration / 3, vcLength)},
+                            new Phoneme { phoneme = $"{thisLastConsonant} -",
+                            position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)},
+                            }
+                        };
+                    }
+                    else{
+                        // 이웃 없고 받침 있음 - 나머지 / 냑
+                        return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - Math.Min(totalDuration / 3, vcLength)},
+                            }
+                        };
+                    }
                 }
 
-
-                // 만약 받침이 없다면
-                if (TCLfinal == "") {
-                    // 뒤에 노트가 있다면
-                    if ((TNLconsonantCBNN != "")) {
-                        int totalDuration = notes.Sum(n => n.duration);
-                        int vcLength = 60;
-                        if ((TNLconsonant == "r") || (TNLconsonant == "g") || (TNLconsonant == "d") || (TNLconsonant == "n")) { vcLength = 33; }
-                        else if (TNLconsonant == "h") {
-                            vcLength = 15;
+                else if ((prevNeighbour != null) && (nextNeighbour == null)){
+                        // 앞에 이웃 있고 뒤에 이웃 없음 / 냥[냥]
+                        if (thisLastConsonant.Equals("")){ // 뒤이웃만 없고 받침 없음 / 냐[냐]
+                        if ((prevSuffix.Equals("")) && (prevLastConsonant.Equals("")) && (thisFirstConsonant.Equals("")) && (thisVowelHead.Equals(""))){
+                            // 앞에 받침 없는 모음 / 냐[아]
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{VV}"},
+                            new Phoneme { phoneme = $"{thisVowelTail} -",
+                            position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)},
+                            }
+                        };
                         }
-                        else if ((TNLconsonant == "ch") || (TNLconsonant == "gg")) { vcLength = totalDuration / 2; }
-                        else if ((TNLconsonant == "k") || (TNLconsonant == "t") || (TNLconsonant == "p")  || (TNLconsonant == "dd") || (TNLconsonant == "bb") || (TNLconsonant == "ss") || (TNLconsonant == "jj")) { vcLength = totalDuration / 3; }
-                        vcLength = Math.Min(totalDuration / 2, vcLength);
-
-                        if (singer.TryGetMappedOto(CV, note.tone + attr0.toneShift, attr0.voiceColor, out var oto1) && singer.TryGetMappedOto(VC, note.tone + attr0.toneShift, attr0.voiceColor, out var oto2)) {
-                            CV = oto1.Alias;
-                            VC = oto2.Alias;
-                            return new Result {
-                                phonemes = new Phoneme[] {
-                                    new Phoneme() {
-                                        phoneme = CV,
-                                    },
-                                    new Phoneme() {
-                                        phoneme = VC,
-                                        position = totalDuration - vcLength,
-                                    }
-                                },
-                            };
+                        else if ((prevSuffix.Equals("")) && (! prevLastConsonant.Equals("")) && (thisSuffix.Equals("")) && (thisFirstConsonant.Equals("")) && (! thisVowelTail.Equals(""))){
+                            // 앞에 받침이 온 모음 / 냥[아]
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{CV}"},
+                            new Phoneme { phoneme = $"{thisVowelTail} -",
+                            position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)}
+                            }
+                        };
+                        }
+                        else{
+                            // 모음아님 / 냐[냐]
+                            if ((thisFirstConsonant.Equals("g")) || (thisFirstConsonant.Equals("d")) || (thisFirstConsonant.Equals("b")) || (thisFirstConsonant.Equals("s")) || (thisFirstConsonant.Equals("j")) || (thisFirstConsonant.Equals("n")) || (thisFirstConsonant.Equals("r")) || (thisFirstConsonant.Equals("m")) || (thisFirstConsonant.Equals(""))){
+                                // ㄱㄷㅂㅅㅈㄴㄹㅁ일 경우 CV로 이음
+                                return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{CV}"},
+                            new Phoneme { phoneme = $"{thisVowelTail} -",
+                            position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)},
+                            }
+                        };
+                            }
+                            else {
+                                // 이외 음소는 - CV로 이음
+                                return new Result(){
+                            phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{thisVowelTail} -",
+                            position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)},
+                            }
+                        };
+                            }
+                            
                         }
                         
                     }
-                }
+                    else if ((thisLastConsonant.Equals("n")) || (thisLastConsonant.Equals("l")) || (thisLastConsonant.Equals("ng")) || (thisLastConsonant.Equals("m")) || (nextFirstConsonant.Equals("ss"))){
+                        // 뒤이웃만 없고 받침 있음 - ㄴㄹㅇㅁ + 뒤에 오는 음소가 ㅆ임 / 냐[냥]
 
-
-                // 그 외(받침 없는 마지막 노트)
-                if (singer.TryGetMappedOto(CV, note.tone + attr0.toneShift, attr0.voiceColor, out var oto)){
-                        CV = oto.Alias;
-                        return new Result {
-                            phonemes = new Phoneme[] {
-                                new Phoneme() {
-                                    phoneme = CV,
+                        if ((prevSuffix.Equals("")) && (prevLastConsonant.Equals("")) && (thisFirstConsonant.Equals("")) && (thisVowelHead.Equals(""))){
+                            // 앞에 받침 없는 모음 / 냐[앙]
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{VV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - Math.Min(totalDuration / 3, vcLength)},
+                            new Phoneme { phoneme = $"{thisLastConsonant} -",
+                            position = totalDuration - totalDuration / 8},
                             }
-                        },
-                    };
-                }
-            }
-
-            if (prevHangeul) {
-                string endBreath = "-";
-
-                if (prevExist && TPLfinal == "" && endBreath.Contains(currentLyric)) {
-                    endBreath = $"{TPLplainvowel} -";
-                    prevIsBreath = true; // to prevent this→→ case→→, for example... "[사, -, 사 (=notes)]" should be "[- sa,  a -, - sa(=phonemes)]", but it becomes [sa, a -, 사(=phonemes)] in phonemizer, so '사' note becomes *no sound.
-                }
-                else if (prevExist && TPLfinal != "" && endBreath.Contains(currentLyric)) {
-                    endBreath = $"{TPLplainfinal} -";
-                    prevIsBreath = true; // to prevent this→→ case→→, for example... "[사, -, 사 (=notes)]" should be "[- sa,  a -, - sa(=phonemes)]", but it becomes [sa, a -, 사(=phonemes)] in phonemizer, so '사' note becomes *no sound.
-                }
-
-                if (singer.TryGetMappedOto(endBreath, note.tone + attr0.toneShift, attr0.voiceColor, out var oto)){
-                        endBreath = oto.Alias;
-                        return new Result {
-                            phonemes = new Phoneme[] {
-                            new Phoneme() {
-                                phoneme = endBreath,
-                            }
-                        },
-                    };
-                }
-            }
-
-
-
-
-            // ======================================================================================
-/**
-            if (prevNeighbour == null) {
-                // Use "- V" or "- CV" if present in voicebank
-                var initial = $"- {currentLyric}";
-                string[] tests = new string[] {initial, currentLyric};
-                // try [- XX] before trying plain lyric
-                if (checkOtoUntilHit(tests, note, out var oto)){
-                    currentLyric = oto.Alias;
-                }
-            } else if ("-".Contains(currentLyric)) {
-                var prevUnicode = ToUnicodeElements(prevNeighbour?.lyric);
-                prevIsBreath = true;
-                // end breath note
-                if (vowelLookup.TryGetValue(prevUnicode.LastOrDefault() ?? string.Empty, out var vow)) {
-                    var vowel = "";
-                    var prevLyric = string.Join("", prevUnicode);;   
-                    vowel = vow;
-                    
-                    var endBreath = $"{vow} -";
-                    if (prevLyric.EndsWith("eo")) {
-                        endBreath = $"eo -";
-                    } else if (prevLyric.EndsWith("eu")) {
-                        endBreath = $"eu -";
-                    }
-                                        
-                    // try end breath
-                    string[] tests = new string[] {endBreath, currentLyric};
-                    if (checkOtoUntilHit(tests, note, out var oto)){ 
-                        currentLyric = oto.Alias;
-                    }
-                }
-            } else {
-                string[] tests = new string[] {currentLyric};
-                if (checkOtoUntilHit(tests, note, out var oto)){
-                    currentLyric = oto.Alias;
-                }
-            }
-**/
-            if (nextNeighbour != null) { // 다음에 노트가 있으면
-                var nextUnicode = ToUnicodeElements(nextNeighbour?.lyric);
-                var nextLyric = string.Join("", nextUnicode);
-
-                // Check if next note is a vowel and does not require VC
-                if (plainVowels.Contains(nextUnicode.FirstOrDefault() ?? string.Empty)) {
-                    return new Result {
-                        phonemes = new Phoneme[] {
-                            new Phoneme() {
-                                phoneme = currentLyric,
-                            }
-                        },
-                    };
-                }
-
-                // Insert VC before next neighbor
-                // Get vowel from current note
-                var vowel = "";
-
-                if (vowelLookup.TryGetValue(currentUnicode.LastOrDefault() ?? string.Empty, out var vow)) {
-                    vowel = vow;
-
-                    if (currentLyric.Contains("e")) {
-                        vowel = "e" + vowel;
-                        vowel = vowel.Replace("ee", "e");
-                    }
-                }
-
-                // Get consonant from next note
-                var consonant = "";
-                if (consonantLookup.TryGetValue(nextUnicode.FirstOrDefault() ?? string.Empty, out var con)) {
-                    consonant = getConsonant(nextNeighbour?.lyric); //로마자만 가능
-                    if (!(isAlphaCon(consonant))) { consonant = con; }
-                }
-
-                if (consonant == "") {
-                    return new Result {
-                        phonemes = new Phoneme[] {
-                            new Phoneme() {
-                                phoneme = currentLyric,
-                            }
-                        },
-                    };
-                }
-
-                var vcPhoneme = $"{vowel} {consonant}";
-                var vcPhonemes = new string[] {vcPhoneme, ""};
-                if (checkOtoUntilHit(vcPhonemes, note, out var oto1)) {
-                    vcPhoneme = oto1.Alias;
-                } else {
-                    return new Result {
-                        phonemes = new Phoneme[] {
-                            new Phoneme() {
-                                phoneme = currentLyric,
-                            }
-                        },
-                    };
-                }
-
-                int totalDuration = notes.Sum(n => n.duration);
-                int vcLength = 60;
-                var nextAttr = nextNeighbour.Value.phonemeAttributes?.FirstOrDefault(attr => attr.index == 0) ?? default;
-                if (singer.TryGetMappedOto(nextLyric, nextNeighbour.Value.tone + nextAttr.toneShift, nextAttr.voiceColor, out var oto)) {
-                    vcLength = MsToTick(oto.Preutter);
-                }
-                vcLength = Math.Min(totalDuration / 2, vcLength);
-
-
-
-                return new Result {
-                    phonemes = new Phoneme[] {
-                        new Phoneme() {
-                            phoneme = currentLyric,
-                        },
-                        new Phoneme() {
-                            phoneme = vcPhoneme,
-                            position = totalDuration - vcLength,
+                        };
                         }
-                    },
+                        else if ((prevSuffix.Equals("")) && (! prevLastConsonant.Equals("")) && (thisSuffix.Equals("")) && (thisFirstConsonant.Equals("")) && (! thisVowelTail.Equals(""))){
+                            // 앞에 받침이 온 모음 / 냥[앙]
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{CV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - Math.Min(totalDuration / 3, vcLength)},
+                            new Phoneme { phoneme = $"{thisVowelTail} -",
+                            position = totalDuration - totalDuration / 8},
+                            }
+                        };
+                        }
+                        
+                        else{
+                            // 뒤이웃만 없고 받침 있음 - 나머지 / 냐[냑]
+                            if ((thisFirstConsonant.Equals("g")) || (thisFirstConsonant.Equals("d")) || (thisFirstConsonant.Equals("b")) || (thisFirstConsonant.Equals("s")) || (thisFirstConsonant.Equals("j")) || (thisFirstConsonant.Equals("n")) || (thisFirstConsonant.Equals("r")) || (thisFirstConsonant.Equals("m")) || (thisFirstConsonant.Equals("")) || (nextFirstConsonant.Equals("s"))){
+                                // 앞받침 있고 다음이 ㄱㄷㅂㅅㅈㄴㄹㅁ일 경우 CV로 이음
+                                return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{CV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - cVCLength},
+                            }
+                        };
+                            }
+                            else {
+                                // 이외 음소는 - CV로 이음
+                                return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - cVCLength},
+                            new Phoneme { phoneme = $"{thisLastConsonant} -",
+                            position = totalDuration - totalDuration / 8},
+                            }
+                        };
+                            }
+                        }
+                        
+                    }
+                    else{
+                        
+                        return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{CV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - totalDuration / 2},
+                            }
+                        };
+                    }
+
+                        
+                    }
+                else if ((prevNeighbour == null) && (nextNeighbour != null)){
+                    if (hanguel.isHangeul(nextNeighbour?.lyric)){
+                        // 뒤 글자가 한글임
+                        // 앞에 이웃 없고 뒤에 있음
+
+                    if (thisLastConsonant.Equals("")){ // 앞이웃만 없고 받침 없음 / [냐]냥
+                        if (nextFirstConsonant.Equals("")){
+                            // 뒤에 VV 와야해서 VC 오면 안됨
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"- {CV}"},
+                            }
+                        };
+                        }
+                        
+                        else{
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{VC}",
+                            position = totalDuration - Math.Min(totalDuration / 3, vcLength)},
+                            }
+                        };
+                        }
+                        
+                    }
+                    else if ((thisLastConsonant.Equals("n")) || (thisLastConsonant.Equals("l")) || (thisLastConsonant.Equals("ng")) || (thisLastConsonant.Equals("m"))){
+                        // 앞이웃만 없고 받침 있음 - ㄴㄹㅇㅁ / [냥]냐
+                        if ((nextFirstConsonant.StartsWith("g")) || (nextFirstConsonant.StartsWith("d")) || (nextFirstConsonant.StartsWith("b")) || (nextFirstConsonant.StartsWith("s")) || (nextFirstConsonant.StartsWith("j")) || (nextFirstConsonant.StartsWith("n")) || (nextFirstConsonant.StartsWith("r")) || (nextFirstConsonant.StartsWith("m")) || (nextFirstConsonant.Equals("")) || (nextFirstConsonant.StartsWith("s"))){
+                            return new Result(){
+                        phonemes = new Phoneme[] {
+                            // 다음 음소가 ㄴㅇㄹㅁㄱㄷㅂ 임 
+                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - cVCLength},
+                            }// -음소 없이 이어줌
+                        };
+                        }
+                        else{
+                            // 다음 음소가 나머지임
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - cVCLength},
+                            new Phoneme { phoneme = $"{thisLastConsonant} -",
+                            position = totalDuration - totalDuration / 2},
+                            }// -음소 있이 이어줌
+                        };
+                        }
+                        
+                    }
+                    else{
+                        // 앞이웃만 없고 받침 있음 - 나머지 / [꺅]꺄
+                        return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - cVCLength},
+                            }
+                        };
+                    }
+                    }
+                    else if (nextNeighbour?.lyric == "-"){
+                        if (thisLastConsonant.Equals("")){
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"- {CV}"},
+                            }
+                        };
+                        }
+                        else{
+                        return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - Math.Min(totalDuration / 3, vcLength)},
+                            }
+                        };
+                    }
+                    }
+                    else{
+                        return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{CV}"},
+                            }
+                        };
+                    }
+                }
+                else if ((prevNeighbour != null) && (nextNeighbour != null)){
+                    // 둘다 이웃 있음
+                    if (hanguel.isHangeul(nextNeighbour?.lyric)){
+                        // 뒤의 이웃이 한국어임
+
+                    if (thisLastConsonant.Equals("")){ // 둘다 이웃 있고 받침 없음 / 냥[냐]냥
+                        if ((prevSuffix.Equals("")) && (prevLastConsonant.Equals("")) && (thisFirstConsonant.Equals("")) && (thisVowelHead.Equals("")) && (nextFirstConsonant.Equals(""))){
+                            // 앞에 받침 없는 모음 / 뒤에 모음 옴 / 냐[아]아
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{VV}"},
+                            }
+                        };
+                        }
+                        else if ((prevSuffix.Equals("")) && (prevLastConsonant.Equals("")) && (thisFirstConsonant.Equals("")) && (thisVowelHead.Equals(""))){
+                            // 앞에 받침 없는 모음 / 뒤에 자음 옴 / 냐[아]냐
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{VV}"},
+                            new Phoneme { phoneme = $"{VC}",
+                            position = totalDuration - Math.Min(totalDuration / 3, vcLength)},
+                            }
+                        };
+                        }
+                        else {
+                            // 앞에 받침 있고 뒤에 모음 옴 / 냐[냐]냐  냥[아]냐
+                            if (nextFirstConsonant.Equals("")){
+                                if ((! prevLastConsonant.Equals("")) && ((thisFirstConsonant.Equals("gg")) || (thisFirstConsonant.Equals("dd")) || (thisFirstConsonant.Equals("bb")) || (thisFirstConsonant.Equals("ss")) || (thisFirstConsonant.Equals("jj")) || (thisFirstConsonant.Equals("k")) || (thisFirstConsonant.Equals("t")) || (thisFirstConsonant.Equals("p")))){
+                                    // ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
+                                    return new Result(){
+                            phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"- {CV}"},
+                            }
+                        };
+                                }
+                                else {
+                                    // 나머지 / CV로 시작
+                                    return new Result(){
+                            phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{CV}"},
+                            }
+                        };
+                                }
+                            }
+    
+                            else {
+                                // 앞에 받침 있고 뒤에 모음 안옴
+                                if ((! prevLastConsonant.Equals("")) && ((thisFirstConsonant.Equals("gg")) || (thisFirstConsonant.Equals("dd")) || (thisFirstConsonant.Equals("bb")) || (thisFirstConsonant.Equals("ss")) || (thisFirstConsonant.Equals("jj")) || (thisFirstConsonant.Equals("k")) || (thisFirstConsonant.Equals("t")) || (thisFirstConsonant.Equals("p")))){
+                                    // ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
+                                    return new Result(){
+                            phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{VC}",
+                            position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)},
+                            }
+                        };
+                                }
+                                else {
+                                    // 나머지 / CV로 시작
+                                    return new Result(){
+                            phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{CV}"},
+                            new Phoneme { phoneme = $"{VC}",
+                            position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)},
+                            }
+                        };
+                                }
+                                
+                                
+                            }
+
+        
+                            
+                        }
+                        
+                    }
+                    else if ((thisLastConsonant.Equals("n")) || (thisLastConsonant.Equals("l")) || (thisLastConsonant.Equals("ng")) || (thisLastConsonant.Equals("m")) || (nextFirstConsonant.Equals("ss"))){
+                        // 둘다 이웃 있고 받침 있음 - ㄴㄹㅇㅁ + 뒤에 오는 음소가 ㅆ인 아무런 받침 / 냐[냥]냐
+                        if ((nextFirstConsonant.StartsWith("n")) || (nextFirstConsonant.StartsWith("r")) || (nextFirstConsonant.Equals("")) || (nextFirstConsonant.StartsWith("m")) || (nextFirstConsonant.StartsWith("g")) || (nextFirstConsonant.StartsWith("d")) || (nextFirstConsonant.StartsWith("b")) || (nextFirstConsonant.StartsWith("s")) || (nextFirstConsonant.StartsWith("j"))){
+                            // 다음 음소가 ㄴㅇㄹㅇ 임
+                            if ((prevSuffix.Equals("")) && (prevLastConsonant.Equals("")) && (thisFirstConsonant.Equals("")) && (thisVowelHead.Equals(""))){
+                            // 앞에 받침 없고 받침 있는 모음 / 냐[앙]냐
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{VV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - cVCLength},
+                            }
+                        };
+                        }
+                        else{
+                            // 앞에 받침 있고 받침 오는 CV / 냥[냥]냐 
+                            if ((thisFirstConsonant.Equals("gg")) || (thisFirstConsonant.Equals("dd")) || (thisFirstConsonant.Equals("bb")) || (thisFirstConsonant.Equals("ss")) || (thisFirstConsonant.Equals("jj")) || (thisFirstConsonant.Equals("k")) || (thisFirstConsonant.Equals("t")) || (thisFirstConsonant.Equals("p"))){
+                                    // ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함
+                                    return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - cVCLength,}
+                            }
+                        }; 
+                            }
+                            else {
+                                return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{CV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - cVCLength,}
+                            }// -음소 없이 이어줌
+                        };
+                            }
+                            
+                        }
+                            
+                        }
+                        else{
+                            // 다음 음소가 ㄴㅇㄹㅁ 제외 나머지임
+                            if ((prevSuffix.Equals("")) && (prevLastConsonant.Equals("")) && (thisFirstConsonant.Equals("")) && (thisVowelHead.Equals(""))){
+                            // 앞에 받침 없는 모음 / 냐[앙]꺅
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{VV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - cVCLength},
+                            new Phoneme { phoneme = $"{thisLastConsonant} -",
+                            position = totalDuration - totalDuration / 2}
+                            }
+                        };
+                        }
+                            else{
+                                // 앞에 받침 있고 받침 있는 CVC / 냥[냥]꺅
+                                if ((thisFirstConsonant.Equals("gg")) || (thisFirstConsonant.Equals("dd")) || (thisFirstConsonant.Equals("bb")) || (thisFirstConsonant.Equals("ss")) || (thisFirstConsonant.Equals("jj")) || (thisFirstConsonant.Equals("k")) || (thisFirstConsonant.Equals("t")) || (thisFirstConsonant.Equals("p"))){
+                                    // ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
+                                    return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - cVCLength},
+                            new Phoneme { phoneme = $"{thisLastConsonant} -",
+                            position = totalDuration - totalDuration / 8},
+                        }
+                        };
+                                }
+                                else {
+                                    // 나머지 음소 
+                                    return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{CV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - cVCLength},
+                            new Phoneme { phoneme = $"{thisLastConsonant} -",
+                            position = totalDuration - totalDuration / 8},
+                        }
+                        };
+                                }
+                                
+                            }
+                            
+                        }
+                        
+                    }
+                    else{
+                        // 둘다 이웃 있고 받침 있음 - 나머지 / 꺅[꺅]꺄
+                        if ((prevSuffix.Equals("")) && (prevLastConsonant.Equals("")) && (thisFirstConsonant.Equals("")) && (thisVowelHead.Equals(""))){
+                            // 앞에 받침 없는 모음 / 냐[악]꺅
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{VV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - cVCLength,}
+                            }
+                        };
+                        }
+                        else{
+                            // 앞에 받침이 온 CVC 음소(받침 있음) / 냥[악]꺅  냥[먁]꺅
+                            if ((thisFirstConsonant.Equals("gg")) || (thisFirstConsonant.Equals("dd")) || (thisFirstConsonant.Equals("bb")) || (thisFirstConsonant.Equals("ss")) || (thisFirstConsonant.Equals("jj")) || (thisFirstConsonant.Equals("k")) || (thisFirstConsonant.Equals("t")) || (thisFirstConsonant.Equals("p"))){
+                                    // ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
+                                return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - cVCLength},
+                            }
+                        };
+                        }
+                        else {
+                            // 나머지
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{CV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - cVCLength},
+                            }
+                        };
+                        }
+                            }
+                            
+                            
+                        
+                    }
+                    }
+                    else if (nextNeighbour?.lyric == "-"){
+                        // 둘다 이웃 있고 뒤에 -가 옴
+                        if (thisLastConsonant.Equals("")){ // 둘다 이웃 있고 받침 없음 / 냥[냐]냥
+                        if ((prevSuffix.Equals("")) && (prevLastConsonant.Equals("")) && (thisFirstConsonant.Equals("")) && (thisVowelHead.Equals(""))){
+                            // 앞에 받침 없는 모음 / 냐[아]냐
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{VV}"},
+                            }
+                        };
+                        }
+                        else {
+                            // 앞에 받침 있는 모음 + 모음 아님 / 냐[냐]냐  냥[아]냐
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{CV}"},
+                            }
+                        };
+                        }
+                        
+                    }
+                    else if ((thisLastConsonant.Equals("n")) || (thisLastConsonant.Equals("l")) || (thisLastConsonant.Equals("ng")) || (thisLastConsonant.Equals("m"))){
+                        // 둘다 이웃 있고 받침 있음 - ㄴㄹㅇㅁ / 냐[냥]냐
+                        if ((nextFirstConsonant.Equals("n")) || (nextFirstConsonant.Equals("r")) || (nextFirstConsonant.Equals("")) || (nextFirstConsonant.Equals("m"))){
+                            // 다음 음소가 ㄴㅇㄹㅇ 임
+                            if ((prevSuffix.Equals("")) && (prevLastConsonant.Equals("")) && (thisFirstConsonant.Equals("")) && (thisVowelHead.Equals(""))){
+                            // 앞에 받침 없는 모음 / 냐[앙]냐
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{VV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - cVCLength,}
+                            }
+                        };
+                        }
+                        else{
+                            // 앞에 받침이 있는 모음 + 모음 아님 / 냥[앙]냐 냥[냥]냥
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{CV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - cVCLength,}
+                            }// -음소 없이 이어줌
+                        };
+                        }
+                            
+                        }
+                        else{
+                            // 다음 음소가 ㄴㅇㄹㅁ 제외 나머지임
+                            if ((prevSuffix.Equals("")) && (prevLastConsonant.Equals("")) && (thisFirstConsonant.Equals("")) && (thisVowelHead.Equals(""))){
+                            // 앞에 받침 없는 모음 / 냐[앙]꺅
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{VV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - cVCLength,}
+                            }
+                        };
+                        }
+                            else{
+                                // 앞에 받침 있는 모음 + 모음 아님 / 냥[앙]꺅  냥[냥]꺅
+                                return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{CV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - cVCLength,}
+                            }
+                        };
+                            }
+                            
+                        }
+                        
+                    }
+                    else{
+                        // 둘다 이웃 있고 받침 있음 - 나머지 / 꺅[꺅]꺄
+                        if ((prevSuffix.Equals("")) && (prevLastConsonant.Equals("")) && (thisFirstConsonant.Equals("")) && (thisVowelHead.Equals(""))){
+                            // 앞에 받침 없는 모음 / 냐[악]꺅
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{VV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)},
+                            }
+                        };
+                        }
+                        else{
+                            // 앞에 받침이 온 모음 + 모음 아님  냥[악]꺅  냥[먁]꺅
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{CV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - Math.Min(totalDuration / 3, vcLength)},
+                            }
+                        };
+                        }
+                        
+                    }
+                    }
+                    else{
+                        if (thisLastConsonant.Equals("")){ // 둘다 이웃 있고 받침 없음 / 냥[냐]-
+                        return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{CV}"},
+                        }
+                        };
+                    }
+                        else if ((thisLastConsonant.Equals("n")) || (thisLastConsonant.Equals("l")) || (thisLastConsonant.Equals("ng")) || (thisLastConsonant.Equals("m"))){
+                            // 둘다 이웃 있고 받침 있음 - ㄴㄹㅇㅁ / 냐[냥]-
+                        
+                            return new Result(){
+                            phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{CV}"},
+                            new Phoneme { phoneme = $"{cVC}",
+                            position = totalDuration - Math.Min(totalDuration / 3, vcLength)},
+                                }// -음소 없이 이어줌
+                            };
+                        }
+                        else{
+                            // 둘다 이웃 있고 받침 있음 - 나머지 / 꺅[꺅]-
+                            return new Result(){
+                            phonemes = new Phoneme[] { 
+                                new Phoneme { phoneme = $"{CV}"},
+                                new Phoneme { phoneme = $"{cVC}",
+                                position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)},
+                                }
+                            };
+                        }
+                    }
+                }
+                else{
+                    return new Result(){
+                    phonemes = new Phoneme[] { 
+                            new Phoneme {phoneme = CV},
+                            }
+                };
+                }
+            }
+            else{
+                
+                // [] 표시로 음소 입력하는거 구현
+                // - R 등등 구현
+                // 로마자 음소 구현
+                // 아래 리턴은 임시이다
+                var phoneme = lyric;
+                return new Result(){
+                    phonemes = new Phoneme[] { 
+                            new Phoneme {phoneme = phoneme},
+                            }
                 };
             }
-
-            // No next neighbor
-            return new Result {
-                phonemes = new Phoneme[] {
-                    new Phoneme {
-                        phoneme = currentLyric,
-                    }
-                },
-            };
+            
+           
         }
+        
     }
+
+    
 }
