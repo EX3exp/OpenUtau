@@ -1073,6 +1073,7 @@ namespace OpenUtau.Plugin.Builtin {
 
             Note note = notes[0];
             string lyric = note.lyric;
+            string phoneticHint = note.phoneticHint;
 
             Note? prevNote = prevNeighbour; // null or Note
             Note thisNote = note;
@@ -1085,7 +1086,54 @@ namespace OpenUtau.Plugin.Builtin {
             Hanguel hanguel = new Hanguel();
             CV cv = new CV();
             ///
-            if (hanguel.isHangeul(lyric)){
+            if ( phoneticHint != null){
+                // 발음 힌트가 있음 / 냥[nya2, ang]
+                string[] phoneticHints = phoneticHint.Split(','); // 쉼표로 구분해서 발음기호를 가져옴
+                int phoneticHintsLength = phoneticHints.Length; 
+                
+
+                Phoneme[] phonemes = new Phoneme[phoneticHintsLength];
+
+
+                for (int i = 0; i < phoneticHintsLength; i++){
+                    if (i == 0){
+                        // 첫 음소 배치
+                        phonemes[i] = new Phoneme {phoneme = phoneticHints[0].Trim()};
+                    }
+                    else if ((i == phoneticHintsLength - 1) && ((phoneticHints[i].Trim().EndsWith('-')) || phoneticHints[i].Trim().EndsWith('R'))){
+                        // 마지막 음소이고 끝음소(ex: a -, a R)일 경우, VCLengthShort에 맞춰 음소를 배치
+                        phonemes[i] = new Phoneme {
+                            phoneme = phoneticHints[i].Trim(),
+                            position = totalDuration - Math.Min(((totalDuration / phoneticHintsLength) * (phoneticHintsLength - i)), totalDuration / 8)
+                            // 8등분한 길이로 끝에 숨소리 음소 배치, n등분했을 때의 음소 길이가 이보다 작다면 n등분했을 때의 길이로 간다
+                        };
+                    }
+                    else if (phoneticHintsLength == 2){
+                        // 입력되는 발음힌트가 2개일 경우, 2등분되어 음소가 배치된다.
+                        // 이 경우 부자연스러우므로 3등분해서 음소 배치하게 조정
+                        phonemes[i] = new Phoneme {
+                            phoneme = phoneticHints[i].Trim(),
+                            position = totalDuration - totalDuration / 3
+                            // 3등분해서 음소가 배치됨
+                        };
+                    }
+                    
+                    else {
+                        phonemes[i] = new Phoneme {
+                            phoneme = phoneticHints[i].Trim(),
+                            position = totalDuration - ((totalDuration / phoneticHintsLength) * (phoneticHintsLength - i))
+                            // 균등하게 n등분해서 음소가 배치됨
+                        };
+                    }
+
+                }
+
+                return new Result(){
+                        phonemes = phonemes
+                        };
+            }
+
+            else if (hanguel.isHangeul(lyric)){
                 cvPhonemes = cv.convertForCV(prevNote, thisNote, nextNote, new bool[]{isUsingShi, isUsing_aX, isUsing_i, isRentan}); // [isUsingShi], isUsing_aX, isUsing_i, isRentan
                 // 음운변동이 진행됨 => 위에서 반환된 음소로 전부 때울 예정
 
@@ -1114,7 +1162,7 @@ namespace OpenUtau.Plugin.Builtin {
                 }
                 else if (thisLastConsonant.Equals("n")){
                     // ㄴ받침
-                    cVCLength = 210;
+                    cVCLength = 170;
                 }
                 else if (thisLastConsonant.Equals("ng")){
                     // ㅇ받침
@@ -1190,7 +1238,7 @@ namespace OpenUtau.Plugin.Builtin {
                 if ((nextVowelHead.Equals("w")) && (thisVowelTail.Equals("eu"))) {
                     nextFirstConsonant = $"{(string)cvPhonemes[8]}"; // VC에 썼을 때 eu bw 대신 eu b를 만들기 위함
                 }
-                else if ((thisVowelTail.Equals("y") && (thisVowelTail.Equals("i")))){
+                else if ((nextVowelHead.Equals("y") && (thisVowelTail.Equals("i")))){
                     nextFirstConsonant = $"{(string)cvPhonemes[8]}"; // VC에 썼을 때 i by 대신 i b를 만들기 위함
                 }
                 else {
@@ -1243,7 +1291,7 @@ namespace OpenUtau.Plugin.Builtin {
                         phonemes = new Phoneme[] { 
                             new Phoneme { phoneme = $"{VV}"},
                             new Phoneme { phoneme = $"{thisVowelTail} -",
-                            position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)},
+                            position = totalDuration - totalDuration / 8},
                             }
                         };
                         }
@@ -1253,7 +1301,7 @@ namespace OpenUtau.Plugin.Builtin {
                         phonemes = new Phoneme[] { 
                             new Phoneme { phoneme = $"{CV}"},
                             new Phoneme { phoneme = $"{thisVowelTail} -",
-                            position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)}
+                            position = totalDuration - totalDuration / 8}
                             }
                         };
                         }
@@ -1263,7 +1311,7 @@ namespace OpenUtau.Plugin.Builtin {
                         phonemes = new Phoneme[] { 
                             new Phoneme { phoneme = $"{CV}"},
                             new Phoneme { phoneme = $"{thisVowelTail} -",
-                            position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)},
+                            position = totalDuration - totalDuration / 8},
                             }
                         };
                         }
@@ -1337,7 +1385,7 @@ namespace OpenUtau.Plugin.Builtin {
                                 return new Result(){
                         phonemes = new Phoneme[] { 
                             new Phoneme { phoneme = $"{frontCV}"},
-                            new Phoneme { phoneme = $"{VC}",
+                            new Phoneme { phoneme = $"",
                             position = totalDuration - Math.Min(totalDuration / 3, vcLength)},
                             }
                             };
@@ -1437,7 +1485,7 @@ namespace OpenUtau.Plugin.Builtin {
                                 return new Result(){
                         phonemes = new Phoneme[] { 
                             new Phoneme { phoneme = $"{VV}"},
-                            new Phoneme { phoneme = $"{VC}",
+                            new Phoneme { phoneme = $"",
                             position = totalDuration - totalDuration / 2},
                             }
                             };
@@ -1466,7 +1514,7 @@ namespace OpenUtau.Plugin.Builtin {
                                 return new Result(){
                         phonemes = new Phoneme[] { 
                             new Phoneme { phoneme = $"{CV}"},
-                            new Phoneme { phoneme = $"{VC}",
+                            new Phoneme { phoneme = "",
                             position = totalDuration - totalDuration / 2},
                             }
                             };
@@ -1519,7 +1567,7 @@ namespace OpenUtau.Plugin.Builtin {
                             new Phoneme { phoneme = $"{cVC}",
                             position = totalDuration - cVCLength},
                             new Phoneme { phoneme = "",
-                            position = totalDuration - 120}
+                            position = totalDuration - totalDuration / 8}
                             }
                         };
                         }
@@ -1531,7 +1579,7 @@ namespace OpenUtau.Plugin.Builtin {
                             new Phoneme { phoneme = $"{cVC}",
                             position = totalDuration - cVCLength},
                             new Phoneme { phoneme = "",
-                            position = totalDuration - 120},
+                            position = totalDuration - totalDuration / 8},
                         }// -음소 있이 이어줌
                         };
                             }
@@ -1547,7 +1595,7 @@ namespace OpenUtau.Plugin.Builtin {
                         phonemes = new Phoneme[] { 
                             new Phoneme { phoneme = $"{VV}"},
                             new Phoneme { phoneme = $"{cVC}",
-                            position = totalDuration - 200,}
+                            position = totalDuration - cVCLength}
                             }
                         };
                         }
@@ -1557,14 +1605,14 @@ namespace OpenUtau.Plugin.Builtin {
                         phonemes = new Phoneme[] { 
                             new Phoneme { phoneme = $"{CV}"},
                             new Phoneme { phoneme = $"{cVC}",
-                            position = totalDuration - Math.Min(totalDuration / 3, vcLength)},
+                            position = totalDuration - Math.Min(totalDuration / 3, cVCLength)},
                             }
                         };
                         }
                         
                     }
                     }
-                    else if (nextNeighbour?.lyric == "-"){
+                    else if ((nextNeighbour?.lyric == "-") || (nextNeighbour?.lyric == "R")){
                         // 둘다 이웃 있고 뒤에 -가 옴
                         if (thisLastConsonant.Equals("")){ // 둘다 이웃 있고 받침 없음 / 냥[냐]냥
                         if ((prevLastConsonant.Equals("")) && (thisFirstConsonant.Equals("")) && (thisVowelHead.Equals(""))){
@@ -1703,16 +1751,61 @@ namespace OpenUtau.Plugin.Builtin {
             }
             else{
                 
-                // [] 표시로 음소 입력하는거 구현
-                // - R 등등 구현
-                // 로마자 음소 구현
-                // 아래 리턴은 임시이다
-                var phoneme = lyric;
-                return new Result(){
+                 // TODO 로마자 음소입력 구현
+                string phonemeToReturn = lyric; // 아래에서 아무것도 안 걸리면 그냥 가사 반환
+
+                if (thisNote.lyric == "-"){
+                    if (hanguel.isHangeul(prevNote?.lyric)){
+                        cvPhonemes = cv.convertForCV(prevNote, thisNote, nextNote, new bool[]{isUsingShi, isUsing_aX, isUsing_i, isRentan}); // [isUsingShi], isUsing_aX, isUsing_i, isRentan
+                
+                        string prevVowelTail = (string)cvPhonemes[2]; // V이전 노트의 모음 음소 
+                        string prevLastConsonant = (string)cvPhonemes[3]; // 이전 노트의 받침 음소
+
+                        // 앞 노트가 한글
+                        if (! prevLastConsonant.Equals("")){
+                            phonemeToReturn = $"{prevLastConsonant} -";
+                        }
+                        else if (! prevVowelTail.Equals("")){
+                            phonemeToReturn = $"{prevVowelTail} -";
+                        }
+
+                    }
+                    return new Result(){
                     phonemes = new Phoneme[] { 
-                            new Phoneme {phoneme = phoneme},
+                            new Phoneme {phoneme = phonemeToReturn},
                             }
                 };
+                }
+                else if (thisNote.lyric == "R"){
+                    if (hanguel.isHangeul(prevNote?.lyric)){
+                        cvPhonemes = cv.convertForCV(prevNote, thisNote, nextNote, new bool[]{isUsingShi, isUsing_aX, isUsing_i, isRentan}); // [isUsingShi], isUsing_aX, isUsing_i, isRentan
+                
+                        string prevVowelTail = (string)cvPhonemes[2]; // V이전 노트의 모음 음소 
+                        string prevLastConsonant = (string)cvPhonemes[3]; // 이전 노트의 받침 음소
+
+                        // 앞 노트가 한글
+                        if (! prevLastConsonant.Equals("")){
+                            phonemeToReturn = $"{prevLastConsonant} R";
+                        }
+                        else if (! prevVowelTail.Equals("")){
+                            phonemeToReturn = $"{prevVowelTail} R";
+                        }
+                        
+                    }
+                    return new Result(){
+                    phonemes = new Phoneme[] { 
+                            new Phoneme {phoneme = phonemeToReturn},
+                            }
+                };
+                }
+                else{
+                return new Result(){
+                    phonemes = new Phoneme[] { 
+                            new Phoneme {phoneme = phonemeToReturn},
+                            }
+                };
+                }
+                
             }
             
            
