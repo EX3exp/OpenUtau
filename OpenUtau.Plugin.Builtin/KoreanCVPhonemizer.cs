@@ -1134,8 +1134,18 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             else if (hanguel.isHangeul(lyric)){
-                cvPhonemes = cv.convertForCV(prevNote, thisNote, nextNote, new bool[]{isUsingShi, isUsing_aX, isUsing_i, isRentan}); // [isUsingShi], isUsing_aX, isUsing_i, isRentan
+                try{
+                    cvPhonemes = cv.convertForCV(prevNote, thisNote, nextNote, new bool[]{isUsingShi, isUsing_aX, isUsing_i, isRentan}); // [isUsingShi], isUsing_aX, isUsing_i, isRentan
                 // 음운변동이 진행됨 => 위에서 반환된 음소로 전부 때울 예정
+                }
+                catch{
+                    return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = lyric},
+                            }
+                        };
+                }
+                
 
                 // ex 냥냐 (nya3 ang nya)
                 string thisFirstConsonant = (string)cvPhonemes[4]; // n
@@ -1291,7 +1301,7 @@ namespace OpenUtau.Plugin.Builtin {
                         phonemes = new Phoneme[] { 
                             new Phoneme { phoneme = $"{VV}"},
                             new Phoneme { phoneme = $"{thisVowelTail} -",
-                            position = totalDuration - totalDuration / 8},
+                            position = totalDuration - Math.Min(totalDuration / 8, vcLengthShort)},
                             }
                         };
                         }
@@ -1301,7 +1311,7 @@ namespace OpenUtau.Plugin.Builtin {
                         phonemes = new Phoneme[] { 
                             new Phoneme { phoneme = $"{CV}"},
                             new Phoneme { phoneme = $"{thisVowelTail} -",
-                            position = totalDuration - totalDuration / 8}
+                            position = totalDuration - Math.Min(totalDuration / 8, vcLengthShort)}
                             }
                         };
                         }
@@ -1311,7 +1321,7 @@ namespace OpenUtau.Plugin.Builtin {
                         phonemes = new Phoneme[] { 
                             new Phoneme { phoneme = $"{CV}"},
                             new Phoneme { phoneme = $"{thisVowelTail} -",
-                            position = totalDuration - totalDuration / 8},
+                            position = totalDuration - Math.Min(totalDuration / 8, vcLengthShort)},
                             }
                         };
                         }
@@ -1567,7 +1577,7 @@ namespace OpenUtau.Plugin.Builtin {
                             new Phoneme { phoneme = $"{cVC}",
                             position = totalDuration - cVCLength},
                             new Phoneme { phoneme = "",
-                            position = totalDuration - totalDuration / 8}
+                            position = totalDuration - Math.Min(totalDuration / 8, vcLengthShort)}
                             }
                         };
                         }
@@ -1579,7 +1589,7 @@ namespace OpenUtau.Plugin.Builtin {
                             new Phoneme { phoneme = $"{cVC}",
                             position = totalDuration - cVCLength},
                             new Phoneme { phoneme = "",
-                            position = totalDuration - totalDuration / 8},
+                            position = totalDuration - Math.Min(totalDuration / 8, vcLengthShort)},
                         }// -음소 있이 이어줌
                         };
                             }

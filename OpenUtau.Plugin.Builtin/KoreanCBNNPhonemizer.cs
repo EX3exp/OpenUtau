@@ -77,8 +77,14 @@ namespace OpenUtau.Plugin.Builtin {
                     isHangeul = !(unicodeIndex < HANGEUL_UNICODE_START || unicodeIndex > HANGEUL_UNICODE_END); 
                 }
                 else if (character != null) {
-                    unicodeIndex = Convert.ToUInt16(character[0]);
+                    try{
+                        unicodeIndex = Convert.ToUInt16(character[0]);
                     isHangeul = !(unicodeIndex < HANGEUL_UNICODE_START || unicodeIndex > HANGEUL_UNICODE_END); 
+                    }
+                    catch{
+                        isHangeul = false;
+                    }
+                    
                 }
                 else {
                     isHangeul = false;
@@ -711,6 +717,7 @@ namespace OpenUtau.Plugin.Builtin {
                 {"ㅗ", new string[3]{"o", "", "o"}}, 
                 {"ㅘ", new string[3]{"wa", "w", "a"}}, 
                 {"ㅙ", new string[3]{"we", "w", "e"}}, 
+                {"ㅚ", new string[3]{"we", "w", "e"}},
                 {"ㅛ", new string[3]{"yo", "y", "o"}}, 
                 {"ㅜ", new string[3]{"u", "", "u"}}, 
                 {"ㅝ", new string[3]{"weo", "w", "eo"}}, 
@@ -872,7 +879,7 @@ namespace OpenUtau.Plugin.Builtin {
                         // 마지막 음소이고 끝음소(ex: a -, a R)일 경우, VCLengthShort에 맞춰 음소를 배치
                         phonemes[i] = new Phoneme {
                             phoneme = phoneticHints[i].Trim(),
-                            position = totalDuration - Math.Min(((totalDuration / phoneticHintsLength) * (phoneticHintsLength - i)), totalDuration / 8)
+                            position = totalDuration - Math.Min(vcLengthShort, totalDuration / 8)
                             // 8등분한 길이로 끝에 숨소리 음소 배치, n등분했을 때의 음소 길이가 이보다 작다면 n등분했을 때의 길이로 간다
                         };
                     }
@@ -902,7 +909,17 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             else if (hanguel.isHangeul(lyric)){
-                cbnnPhonemes = CBNN.convertForCBNN(prevNote, thisNote, nextNote); 
+                try{
+                    cbnnPhonemes = CBNN.convertForCBNN(prevNote, thisNote, nextNote); 
+                }
+                catch{
+                    return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = lyric},
+                            }
+                        };
+                }
+                
                 // 음운변동이 진행됨 => 위에서 반환된 음소로 전부 때울 예정
 
                 // ex 냥냐 (nya3 ang nya)
@@ -1119,7 +1136,7 @@ namespace OpenUtau.Plugin.Builtin {
                             new Phoneme { phoneme = $"{cVC}",
                             position = totalDuration - Math.Min(totalDuration / 3, cVCLength)},
                             new Phoneme { phoneme = $"{thisLastConsonant} -",
-                            position = totalDuration - totalDuration / 8},
+                            position = totalDuration - Math.Min(totalDuration / 8, vcLengthShort)},
                             }
                         };
                             }
@@ -1255,7 +1272,7 @@ namespace OpenUtau.Plugin.Builtin {
                         else {
                             // 앞에 받침 있고 뒤에 모음 옴 / 냐[냐]아  냥[아]아
                             if (nextFirstConsonant.Equals("")){
-                                if ((! prevLastConsonant.Equals("")) && ((thisFirstConsonant.Equals("gg")) || (thisFirstConsonant.Equals("dd")) || (thisFirstConsonant.Equals("bb")) || (thisFirstConsonant.Equals("ss")) || (thisFirstConsonant.Equals("jj")) || (thisFirstConsonant.Equals("k")) || (thisFirstConsonant.Equals("t")) || (thisFirstConsonant.Equals("p")))){
+                                if ((! prevLastConsonant.Equals("")) && ((thisFirstConsonant.Equals("gg")) || (thisFirstConsonant.Equals("ch")) || (thisFirstConsonant.Equals("dd")) || (thisFirstConsonant.Equals("bb")) || (thisFirstConsonant.Equals("ss")) || (thisFirstConsonant.Equals("jj")) || (thisFirstConsonant.Equals("k")) || (thisFirstConsonant.Equals("t")) || (thisFirstConsonant.Equals("p")))){
                                     // ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
                                     return new Result(){
                             phonemes = new Phoneme[] { 
@@ -1275,7 +1292,7 @@ namespace OpenUtau.Plugin.Builtin {
     
                             else {
                                 // 앞에 받침 있고 뒤에 모음 안옴
-                                if ((! prevLastConsonant.Equals("")) && ((thisFirstConsonant.Equals("gg")) || (thisFirstConsonant.Equals("dd")) || (thisFirstConsonant.Equals("bb")) || (thisFirstConsonant.Equals("ss")) || (thisFirstConsonant.Equals("jj")) || (thisFirstConsonant.Equals("k")) || (thisFirstConsonant.Equals("t")) || (thisFirstConsonant.Equals("p")))){
+                                if ((! prevLastConsonant.Equals("")) && ((thisFirstConsonant.Equals("gg")) || (thisFirstConsonant.Equals("ch")) || (thisFirstConsonant.Equals("dd")) || (thisFirstConsonant.Equals("bb")) || (thisFirstConsonant.Equals("ss")) || (thisFirstConsonant.Equals("jj")) || (thisFirstConsonant.Equals("k")) || (thisFirstConsonant.Equals("t")) || (thisFirstConsonant.Equals("p")))){
                                     // ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
                                     return new Result(){
                             phonemes = new Phoneme[] { 
@@ -1320,7 +1337,7 @@ namespace OpenUtau.Plugin.Builtin {
                         }
                         else{
                             // 앞에 받침 있고 받침 오는 CV / 냥[냥]냐 
-                            if (((thisFirstConsonant.Equals("gg")) || (thisFirstConsonant.Equals("dd")) || (thisFirstConsonant.Equals("bb")) || (thisFirstConsonant.Equals("ss")) || (thisFirstConsonant.Equals("jj")) || (thisFirstConsonant.Equals("k")) || (thisFirstConsonant.Equals("t")) || (thisFirstConsonant.Equals("p"))) && (! prevLastConsonant.Equals(""))){
+                            if (((thisFirstConsonant.Equals("gg")) || (thisFirstConsonant.Equals("ch")) || (thisFirstConsonant.Equals("dd")) || (thisFirstConsonant.Equals("bb")) || (thisFirstConsonant.Equals("ss")) || (thisFirstConsonant.Equals("jj")) || (thisFirstConsonant.Equals("k")) || (thisFirstConsonant.Equals("t")) || (thisFirstConsonant.Equals("p"))) && (! prevLastConsonant.Equals(""))){
                                     // ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함
                                     return new Result(){
                         phonemes = new Phoneme[] { 
@@ -1359,7 +1376,7 @@ namespace OpenUtau.Plugin.Builtin {
                         }
                             else{
                                 // 앞에 받침 있고 받침 있는 CVC / 냥[냥]꺅
-                                if ((thisFirstConsonant.Equals("gg")) || (thisFirstConsonant.Equals("dd")) || (thisFirstConsonant.Equals("bb")) || (thisFirstConsonant.Equals("ss")) || (thisFirstConsonant.Equals("jj")) || (thisFirstConsonant.Equals("k")) || (thisFirstConsonant.Equals("t")) || (thisFirstConsonant.Equals("p"))){
+                                if ((thisFirstConsonant.Equals("gg")) || (thisFirstConsonant.Equals("ch")) || (thisFirstConsonant.Equals("dd")) || (thisFirstConsonant.Equals("bb")) || (thisFirstConsonant.Equals("ss")) || (thisFirstConsonant.Equals("jj")) || (thisFirstConsonant.Equals("k")) || (thisFirstConsonant.Equals("t")) || (thisFirstConsonant.Equals("p"))){
                                     // ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
                                     return new Result(){
                         phonemes = new Phoneme[] { 
@@ -1405,7 +1422,7 @@ namespace OpenUtau.Plugin.Builtin {
                         }
                         else{
                             // 앞에 받침이 온 CVC 음소(받침 있음) / 냥[악]꺅  냥[먁]꺅
-                            if ((thisFirstConsonant.Equals("gg")) || (thisFirstConsonant.Equals("dd")) || (thisFirstConsonant.Equals("bb")) || (thisFirstConsonant.Equals("ss")) || (thisFirstConsonant.Equals("jj")) || (thisFirstConsonant.Equals("k")) || (thisFirstConsonant.Equals("t")) || (thisFirstConsonant.Equals("p"))){
+                            if ((thisFirstConsonant.Equals("gg")) || (thisFirstConsonant.Equals("ch")) || (thisFirstConsonant.Equals("dd")) || (thisFirstConsonant.Equals("bb")) || (thisFirstConsonant.Equals("ss")) || (thisFirstConsonant.Equals("jj")) || (thisFirstConsonant.Equals("k")) || (thisFirstConsonant.Equals("t")) || (thisFirstConsonant.Equals("p"))){
                                     // ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
                                 return new Result(){
                         phonemes = new Phoneme[] { 
