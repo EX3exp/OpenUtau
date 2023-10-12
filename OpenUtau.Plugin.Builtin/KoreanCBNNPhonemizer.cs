@@ -9,6 +9,7 @@ using System.Text;
 using Melanchall.DryWetMidi.Core;
 using NumSharp.Extensions;
 using OpenUtau.Api;
+using OpenUtau.Classic;
 using OpenUtau.Core.Ustx;
 using Serilog;
 using SharpCompress;
@@ -18,7 +19,7 @@ namespace OpenUtau.Plugin.Builtin {
     [Phonemizer("Korean CBNN Phonemizer", "KO CBNN", "EX3", language:"KO")]
 
     public class KoreanCBNNPhonemizer : Phonemizer {
-
+        
         // 1. Load Singer
         private USinger singer;
 		public override void SetSinger(USinger singer) => this.singer = singer;
@@ -26,13 +27,38 @@ namespace OpenUtau.Plugin.Builtin {
 
         // 
         public class Hanguel{
+            /// <summary>
+            /// First hangeul consonants, ordered in unicode sequence.
+            /// <br/><br/>유니코드 순서대로 정렬된 한국어 초성들입니다.
+            /// </summary>
             const string FIRST_CONSONANTS = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
+            
+            /// <summary>
+            /// Middle hangeul vowels, ordered in unicode sequence.
+            /// <br/><br/>유니코드 순서대로 정렬된 한국어 중성들입니다.
+            /// </summary>
             const string MIDDLE_VOWELS = "ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ";
+            
+            /// <summary>
+            /// Last hangeul consonants, ordered in unicode sequence.
+            /// <br/><br/>유니코드 순서대로 정렬된 한국어 종성들입니다.
+            /// </summary>
             const string LAST_CONSONANTS = " ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ"; // The first blank(" ") is needed because Hangeul may not have lastConsonant.
             
-            const ushort HANGEUL_UNICODE_START = 0xAC00; // unicode index of 가
-            const ushort HANGEUL_UNICODE_END = 0xD79F; // unicode index of 힣
+            /// <summary>
+            /// unicode index of 가
+            /// </summary>
+            const ushort HANGEUL_UNICODE_START = 0xAC00; 
             
+            /// <summary>
+            /// unicode index of 힣
+            /// </summary>
+            const ushort HANGEUL_UNICODE_END = 0xD79F; 
+            
+            /// <summary>
+            /// A hashtable of basicsounds - ㄱ/ㄷ/ㅂ/ㅅ/ㅈ.
+            /// <br/><br/>예사소리 테이블입니다.
+            /// </summary>
             static readonly Hashtable basicSounds = new Hashtable() {
                     ["ㄱ"] = 0,
                     ["ㄷ"] = 1,
@@ -41,6 +67,12 @@ namespace OpenUtau.Plugin.Builtin {
                     ["ㅅ"] = 4
                 };
 
+            /// <summary>
+            /// A hashtable of aspirate sounds - ㅋ/ㅌ/ㅍ/ㅊ/(ㅌ).
+            /// <br/>[4] is "ㅌ", it will be used when conducting phoneme variation - 격음화(거센소리되기).
+            /// <br/><br/>거센소리 테이블입니다. 
+            /// <br/>[4]의 중복값 "ㅌ"은 오타가 아니며 격음화(거센소리되기) 수행 시에 활용됩니다.
+            /// </summary>
             static readonly Hashtable aspirateSounds = new Hashtable() {
                     [0] = "ㅋ",
                     [1] = "ㅌ",
@@ -49,6 +81,10 @@ namespace OpenUtau.Plugin.Builtin {
                     [4] = "ㅌ"
                 };
 
+            /// <summary>
+            /// A hashtable of fortis sounds - ㄲ/ㄸ/ㅃ/ㅆ/ㅉ.
+            /// <br/><br/>된소리 테이블입니다. 
+            /// </summary>
             static readonly Hashtable fortisSounds = new Hashtable() {
                     [0] = "ㄲ",
                     [1] = "ㄸ",
@@ -57,6 +93,10 @@ namespace OpenUtau.Plugin.Builtin {
                     [4] = "ㅆ"
                 };
 
+            /// <summary>
+            /// A hashtable of nasal sounds - ㄴ/ㅇ/ㅁ.
+            /// <br/><br/>비음 테이블입니다. 
+            /// </summary>
             static readonly Hashtable nasalSounds = new Hashtable() {
                     ["ㄴ"] = 0,
                     ["ㅇ"] = 1,
@@ -65,14 +105,20 @@ namespace OpenUtau.Plugin.Builtin {
 
             public Hanguel(){}
 
+            /// <summary>
+            /// Confirms if input string is hangeul.
+            /// <br/><br/>입력 문자열이 한글인지 확인합니다.
+            /// </summary>
+            /// <param name = "character"> A string of Hangeul character. 
+            /// <br/>(Example: "가", "!가", "가.")</param>
+            /// <returns> Returns true when input string is Hangeul, otherwise false. </returns>
             public bool isHangeul(string? character){
-                /// <summary>
-                /// true when input character is hangeul.
-                /// </summary>
+                
                 ushort unicodeIndex;
                 bool isHangeul;
                 if ((character != null) && character.StartsWith('!')){
-                    // 발음기호 ! 쓰는 상황 대비
+                    // Automatically deletes ! from start.
+                    // Prevents error when user uses ! as a phonetic symbol.  
                     unicodeIndex = Convert.ToUInt16(character.TrimStart('!')[0]);
                     isHangeul = !(unicodeIndex < HANGEUL_UNICODE_START || unicodeIndex > HANGEUL_UNICODE_END); 
                 }
@@ -92,17 +138,18 @@ namespace OpenUtau.Plugin.Builtin {
 
                 return isHangeul;
             }
-
-            public Hashtable separate(string character){
             /// <summary>
-            /// Separates complete hangeul character in three parts - firstConsonant(초성), middleVowel(중성), lastConsonant(종성).
+            /// Separates complete hangeul string's first character in three parts - firstConsonant(초성), middleVowel(중성), lastConsonant(종성).
+            /// <br/>입력된 문자열의 0번째 글자를 초성, 중성, 종성으로 분리합니다.
             /// </summary>
-            /// <param name="hangeul">A complete Hangeul character.
-            /// (ex) '냥' 
+            /// <param name="character"> A string of complete Hangeul character.
+            /// <br/>(Example: '냥') 
             /// </param>
             /// <returns>{firstConsonant(초성), middleVowel(중성), lastConsonant(종성)}
             /// (ex) {"ㄴ", "ㅑ", "ㅇ"}
             /// </returns>
+            public Hashtable separate(string character){
+                
                 int hangeulIndex; // unicode index of hangeul - unicode index of '가' (ex) '냥'
 
                 int firstConsonantIndex; // (ex) 2
@@ -118,15 +165,18 @@ namespace OpenUtau.Plugin.Builtin {
 
                 hangeulIndex = Convert.ToUInt16(character[0]) - HANGEUL_UNICODE_START; 
 
-
-                lastConsonantIndex = hangeulIndex % 28; // seperates lastConsonant
+                // seperates lastConsonant
+                lastConsonantIndex = hangeulIndex % 28; 
                 hangeulIndex = (hangeulIndex - lastConsonantIndex) / 28;
-
-                middleVowelIndex = hangeulIndex % 21; // seperates middleVowel
+                
+                // seperates middleVowel
+                middleVowelIndex = hangeulIndex % 21; 
                 hangeulIndex = (hangeulIndex - middleVowelIndex) / 21;
+                
+                // there's only firstConsonant now
+                firstConsonantIndex = hangeulIndex; 
 
-                firstConsonantIndex = hangeulIndex; // there's only firstConsonant now
-
+                // separates character
                 firstConsonant = FIRST_CONSONANTS[firstConsonantIndex].ToString();
                 middleVowel = MIDDLE_VOWELS[middleVowelIndex].ToString();
                 lastConsonant = LAST_CONSONANTS[lastConsonantIndex].ToString();
@@ -141,18 +191,31 @@ namespace OpenUtau.Plugin.Builtin {
                 return separatedHangeul;
             }
 
-            
+            /// <summary>
+            /// Conducts phoneme variation with two characters input. <br/>※ This method is for only when there are more than one characters, so when there is single character only, Please use variate(string character).  
+            /// <br/><br/>두 글자를 입력받아 음운변동을 진행합니다. <br/>※ 두 글자 이상이 아닌 단일 글자에서 음운변동을 적용할 경우, 이 메소드가 아닌 variate(string character) 메소드를 사용해야 합니다.
+            /// </summary>
+            /// <param name="firstCharSeparated"> Separated table of first target.
+            /// <br/> 첫 번째 글자를 분리한 해시테이블 
+            /// <br/><br/>(Example: {[0]="ㅁ", [1]="ㅜ", [2]="ㄴ"} - 문)
+            /// </param>
+            /// <param name="nextCharSeparated"> Separated table of second target.
+            /// <br/>두 번째 글자를 분리한 해시테이블
+            /// <br/><br/>(Example: {[0]="ㄹ", [1]="ㅐ", [2]=" "} - 래)
+            /// </param>
+            /// <param name="returnCharIndex"> 0: returns result of first target character only. 
+            /// <br/>1: returns result of second target character only. <br/>else: returns result of both target characters. <br/>
+            /// <br/>0: 첫 번째 타겟 글자의 음운변동 결과만 반환합니다.
+            /// <br/>1: 두 번째 타겟 글자의 음운변동 결과만 반환합니다. <br/>나머지 값: 두 타겟 글자의 음운변동 결과를 모두 반환합니다. <br/>
+            /// <br/>(Example(0): {[0]="ㅁ", [1]="ㅜ", [2]="ㄹ"} - 물)
+            /// <br/>(Example(1): {[0]="ㄹ", [1]="ㅐ", [2]=" "} - 래)
+            /// <br/>(Example(-1): {[0]="ㅁ", [1]="ㅜ", [2]="ㄹ", [3]="ㄹ", [4]="ㅐ", [5]=" "} - 물래)
+            /// </param>
+            /// <returns> Example: when returnCharIndex = 0: {[0]="ㅁ", [1]="ㅜ", [2]="ㄹ"} - 물)
+            /// <br/> Example: when returnCharIndex = 1: {[0]="ㄹ", [1]="ㅐ", [2]=" "} - 래)
+            /// <br/> Example: when returnCharIndex = -1: {[0]="ㅁ", [1]="ㅜ", [2]="ㄹ", [3]="ㄹ", [4]="ㅐ", [5]=" "} - 물래)
+            /// </returns>
             private Hashtable variate(Hashtable firstCharSeparated, Hashtable nextCharSeparated, int returnCharIndex=-1){
-                /// 두 글자에서 음운변동 적용 
-                /// 분리된 걸 해시테이블로 넣어줘야 함
-                /// 맨 끝 노트가 아닌 곳에서만 씀!!! 맨 끝 노트에는 variate(string character) 사용
-                /// 갈아 라고 넣으면 가라 라고 나옴
-                /// 앉아 는 안자 됨
-                /// 맑다 는 막따 됨
-                /// returnChar = -1 : 글자 둘 다 반환
-                /// returnChar = 0 : 첫 번째 글자 반환
-                /// returnChar = 1 : 두 번째 글자 반환
-                /// returnChar 나머지 : 글자 둘 다 반환
                 
                 string firstLastConsonant = (string)firstCharSeparated[2]; // 문래 에서 ㄴ, 맑다 에서 ㄺ
                 string nextFirstConsonant = (string)nextCharSeparated[0]; // 문래 에서 ㄹ, 맑다 에서 ㄷ
@@ -215,7 +278,7 @@ namespace OpenUtau.Plugin.Builtin {
                         nextFirstConsonant = "ㅅ";
                     }
                     else if ((firstLastConsonant.Equals("ㅇ")) && (nextFirstConsonant.Equals("ㅇ"))){
-                        // pass
+                        // Do nothing
                     }
                     else {
                         // 겹받침 아닐 때 연음
@@ -338,7 +401,7 @@ namespace OpenUtau.Plugin.Builtin {
                 
                 // return results
                 if (returnCharIndex == 0){
-                    // 첫 번째 글자 반환
+                    // return result of first target character
                     return new Hashtable(){
                         [0] = firstCharSeparated[0], 
                         [1] = firstCharSeparated[1], 
@@ -346,7 +409,7 @@ namespace OpenUtau.Plugin.Builtin {
                         };
                 }
                 else if (returnCharIndex == 1){
-                    // 두 번째 글자 반환
+                    // return result of second target character
                     return new Hashtable(){
                         [0] = nextFirstConsonant, 
                         [1] = nextCharSeparated[1], 
@@ -365,6 +428,15 @@ namespace OpenUtau.Plugin.Builtin {
                 }
             }
 
+            /// <summary>
+            /// Conducts phoneme variation with one character input. <br/>※ This method is only for when there are single character, so when there are more than one character, Please use variate(Hashtable firstCharSeparated, Hashtable nextCharSeparated, int returnCharIndex=-1).  
+            /// <br/><br/>단일 글자를 입력받아 음운변동을 진행합니다. <br/>※ 단일 글자가 아닌 두 글자 이상에서 음운변동을 적용할 경우, 이 메소드가 아닌 variate(Hashtable firstCharSeparated, Hashtable nextCharSeparated, int returnCharIndex=-1) 메소드를 사용해야 합니다.
+            /// </summary>
+            /// <param name="character"> String of single target.
+            /// <br/> 음운변동시킬 단일 글자.
+            /// </param>
+            /// <returns>(Example(삵): {[0]="ㅅ", [1]="ㅏ", [2]="ㄱ"} - 삭)
+            /// </returns>
             private Hashtable variate(string character){
                 /// 맨 끝 노트에서 음운변동 적용하는 함수
                 /// 자음군 단순화와 평파열음화
@@ -393,7 +465,15 @@ namespace OpenUtau.Plugin.Builtin {
                 return separated;
 
             }
-
+            /// <summary>
+            /// Conducts phoneme variation with one character input. <br/>※ This method is only for when there are single character, so when there are more than one character, Please use variate(Hashtable firstCharSeparated, Hashtable nextCharSeparated, int returnCharIndex=-1).  
+            /// <br/><br/>단일 글자의 분리된 값을 입력받아 음운변동을 진행합니다. <br/>※ 단일 글자가 아닌 두 글자 이상에서 음운변동을 적용할 경우, 이 메소드가 아닌 variate(Hashtable firstCharSeparated, Hashtable nextCharSeparated, int returnCharIndex=-1) 메소드를 사용해야 합니다.
+            /// </summary>
+            /// <param name="separated"> Separated table of target.
+            /// <br/> 글자를 분리한 해시테이블 
+            /// </param>
+            /// <returns>(Example({[0]="ㅅ", [1]="ㅏ", [2]="ㄺ"}): {[0]="ㅅ", [1]="ㅏ", [2]="ㄱ"} - 삭)
+            /// </returns>
             private Hashtable variate(Hashtable separated){
                 /// 맨 끝 노트에서 음운변동 적용하는 함수
                 
@@ -420,6 +500,31 @@ namespace OpenUtau.Plugin.Builtin {
                 return separated;
 
             }
+
+            /// <summary>
+            /// Conducts phoneme variation with two characters input. <br/>※ This method is for only when there are more than one characters, so when there is single character only, Please use variate(string character).  
+            /// <br/><br/>두 글자를 입력받아 음운변동을 진행합니다. <br/>※ 두 글자 이상이 아닌 단일 글자에서 음운변동을 적용할 경우, 이 메소드가 아닌 variate(string character) 메소드를 사용해야 합니다.
+            /// </summary>
+            /// <param name="firstChar"> String of first target.
+            /// <br/> 첫 번째 글자.
+            /// <br/><br/>(Example: 문)
+            /// </param>
+            /// <param name="nextChar"> String of second target.
+            /// <br/>두 번째 글자.
+            /// <br/><br/>(Example: 래)
+            /// </param>
+            /// <param name="returnCharIndex"> 0: returns result of first target character only. 
+            /// <br/>1: returns result of second target character only. <br/>else: returns result of both target characters. <br/>
+            /// <br/>0: 첫 번째 타겟 글자의 음운변동 결과만 반환합니다.
+            /// <br/>1: 두 번째 타겟 글자의 음운변동 결과만 반환합니다. <br/>나머지 값: 두 타겟 글자의 음운변동 결과를 모두 반환합니다. <br/>
+            /// <br/>(Example(0): {[0]="ㅁ", [1]="ㅜ", [2]="ㄹ"} - 물)
+            /// <br/>(Example(1): {[0]="ㄹ", [1]="ㅐ", [2]=" "} - 래)
+            /// <br/>(Example(-1): {[0]="ㅁ", [1]="ㅜ", [2]="ㄹ", [3]="ㄹ", [4]="ㅐ", [5]=" "} - 물래)
+            /// </param>
+            /// <returns> Example: when returnCharIndex = 0: {[0]="ㅁ", [1]="ㅜ", [2]="ㄹ"} - 물)
+            /// <br/> Example: when returnCharIndex = 1: {[0]="ㄹ", [1]="ㅐ", [2]=" "} - 래)
+            /// <br/> Example: when returnCharIndex = -1: {[0]="ㅁ", [1]="ㅜ", [2]="ㄹ", [3]="ㄹ", [4]="ㅐ", [5]=" "} - 물래)
+            /// </returns>
             private Hashtable variate(string firstChar, string nextChar, int returnCharIndex=0){
                 // 글자 넣어도 쓸 수 있음
                 Hashtable firstCharSeparated = separate(firstChar);
@@ -427,15 +532,41 @@ namespace OpenUtau.Plugin.Builtin {
                 return variate(firstCharSeparated, nextCharSeparated, returnCharIndex);
             }
 
+            /// <summary>
+            /// Conducts phoneme variation automatically with prevNeighbour, note, nextNeighbour.  
+            /// <br/><br/> prevNeighbour, note, nextNeighbour를 입력받아 자동으로 음운 변동을 진행합니다.
+            /// </summary>
+            /// <param name="prevNeighbour"> Note of prev note, if exists(otherwise null).
+            /// <br/> 이전 노트 혹은 null.
+            /// <br/><br/>(Example: Note with lyric '춘')
+            /// </param>
+            /// <param name="note"> Note of current note. 
+            /// <br/> 현재 노트.
+            /// <br/><br/>(Example: Note with lyric '향')
+            /// </param>
+            /// <param name="nextNeighbour"> Note of next note, if exists(otherwise null).
+            /// <br/> 다음 노트 혹은 null.
+            /// <br/><br/>(Example: null)
+            /// </param>
+            /// <returns> Returns phoneme variation result of prevNote, currentNote, nextNote.
+            /// <br/>이전 노트, 현재 노트, 다음 노트의 음운변동 결과를 반환합니다.
+            /// <br/>Example: 춘 [향] null: {[0]="ㅊ", [1]="ㅜ", [2]=" ", [3]="ㄴ", [4]="ㅑ", [5]="ㅇ", [6]="null", [7]="null", [8]="null"} [추 냥 null]
+            /// </returns>
             public Hashtable variate(Note? prevNeighbour, Note note, Note? nextNeighbour){
                 // prevNeighbour와 note와 nextNeighbour의 음원변동된 가사를 반환
                 // prevNeighbour : VV 정렬에 사용
                 // nextNeighbour : VC 정렬에 사용
                 // 뒤의 노트가 없으면 리턴되는 값의 6~8번 인덱스가 null로 채워진다.
+                
+                /// whereYeonEum : 발음기호 .을 사용하기 위한 변수
+                /// .을 사용하면 앞에서 단어가 끝났다고 간주하고, 끝소리에 음운변동을 적용한 후 연음합니다. 
+                /// ex) 무 릎 위 [무르퓌] 무 릎. 위[무르뷔]
+                /// 
+                /// -1 : 해당사항 없음
+                /// 0 : 이전 노트를 연음하지 않음
+                /// 1 : 현재 노트를 연음하지 않음
                 int whereYeonEum = -1;
-                // -1 : 해당사항 없음
-                // 0 : 이전 노트를 연음하지 않음
-                // 1 : 현재 노트를 연음하지 않음
+                
                 string?[] lyrics = new string?[]{prevNeighbour?.lyric, note.lyric, nextNeighbour?.lyric};
                 
 
@@ -678,9 +809,10 @@ namespace OpenUtau.Plugin.Builtin {
         }
         
         private class CBNN{
-            static readonly string[] PHONEME_TYPES = new string[]{
-                "none", "voiced", "aspirate", "fortis", "fricative", "liquid", "nasal"
-                }; // 음소없음, 유성음, 파열음&파찰음, 경음, 마찰음, 유음, 비음 
+
+            /// <summary>
+            /// CBNN phoneme table of first consonants. (key "null" is for Handling empty string)
+            /// </summary>
             static readonly Dictionary<string, string[]> FIRST_CONSONANTS = new Dictionary<string, string[]>(){
                 {"ㄱ", new string[2]{"g", "voiced"}}, 
                 {"ㄲ", new string[2]{"gg", "fortis"}}, 
@@ -705,6 +837,9 @@ namespace OpenUtau.Plugin.Builtin {
                 {"null", new string[2]{"", ""}} // 뒤 글자가 없을 때를 대비
                 }; 
 
+            /// <summary>
+            /// CBNN phoneme table of middle vowels (key "null" is for Handling empty string)
+            /// </summary>
             static readonly Dictionary<string, string[]> MIDDLE_VOWELS = new Dictionary<string, string[]>(){
                 {"ㅏ", new string[3]{"a", "", "a"}}, 
                 {"ㅐ", new string[3]{"e", "", "e"}}, 
@@ -731,6 +866,9 @@ namespace OpenUtau.Plugin.Builtin {
                 {"null", new string[3]{"", "", ""}} // 뒤 글자가 없을 때를 대비
                 }; 
 
+            /// <summary>
+            /// CBNN phoneme table of last consonants. (key "null" is for Handling empty string)
+            /// </summary>
             static readonly Dictionary<string, string[]> LAST_CONSONANTS = new Dictionary<string, string[]>(){
                  //ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ
                 {"ㄱ", new string[2]{"k", ""}}, 
@@ -766,25 +904,38 @@ namespace OpenUtau.Plugin.Builtin {
             private Hanguel hanguel = new Hanguel();
 
             public CBNN(){}
-            public Hashtable convertForCBNN(Hashtable separated){
-                // Hangeul.separate() 함수 등을 사용해 [초성 중성 종성]으로 분리된 결과물을 CBNN식으로 변경
+
+            /// <summary>
+            /// Converts result of Hangeul.variate(Note? prevNeighbour, Note note, Note? nextNeighbour) into CBNN format.
+            /// <br/>Hangeul.variate(Note? prevNeighbour, Note note, Note? nextNeighbour)를 사용한 결과물을 받아 CBNN식으로 변경합니다.
+            /// </summary>
+            /// <param name="separated">
+            /// result of Hangeul.variate(Note? prevNeighbour, Note note, Note? nextNeighbour).
+            /// </param>
+            /// <returns>
+            /// Returns CBNN formated result. 
+            /// </returns>
+            private Hashtable convertForCBNN(Hashtable separated){
                 // VV 음소를 위해 앞의 노트의 변동된 결과까지 반환한다
                 // vc 음소를 위해 뒤의 노트의 변동된 결과까지 반환한다
                 Hashtable separatedConvertedForCBNN;
 
                 separatedConvertedForCBNN = new Hashtable(){
+                    // first character
                     [0] = FIRST_CONSONANTS[(string)separated[0]][0], //n
                     [1] = MIDDLE_VOWELS[(string)separated[1]][1], // y
                     [2] = MIDDLE_VOWELS[(string)separated[1]][2], // a
                     [3] = LAST_CONSONANTS[(string)separated[2]][1], // 3
                     [4] = LAST_CONSONANTS[(string)separated[2]][0], // ng
 
+                    // second character
                     [5] = FIRST_CONSONANTS[(string)separated[3]][0],
                     [6] = MIDDLE_VOWELS[(string)separated[4]][1],
                     [7] = MIDDLE_VOWELS[(string)separated[4]][2],
                     [8] = LAST_CONSONANTS[(string)separated[5]][1],
                     [9] = LAST_CONSONANTS[(string)separated[5]][0],
 
+                    // last character
                     [10] = FIRST_CONSONANTS[(string)separated[6]][0],
                     [11] = MIDDLE_VOWELS[(string)separated[7]][1],
                     [12] = MIDDLE_VOWELS[(string)separated[7]][2],
@@ -795,38 +946,29 @@ namespace OpenUtau.Plugin.Builtin {
                 return separatedConvertedForCBNN;
             }
 
-            public Hashtable convertForCBNN(string character){
-                // 글자를 넣으면 [초성 중성 종성]으로 분리된 결과물을 CBNN식으로 변경
-                Hashtable separatedConvertedForCBNN;
-
-                Hashtable separated = hanguel.separate(character);
-
-                separatedConvertedForCBNN = new Hashtable(){
-                    // 앞의 노트
-                    [0] = FIRST_CONSONANTS[(string)separated[0]][0], //n
-                    [1] = MIDDLE_VOWELS[(string)separated[1]][1], // y
-                    [2] = MIDDLE_VOWELS[(string)separated[1]][2], // a
-                    [3] = LAST_CONSONANTS[(string)separated[2]][1], // 3
-                    [4] = LAST_CONSONANTS[(string)separated[2]][0], // ng
-
-                    // 현재 노트
-                    [5] = FIRST_CONSONANTS[(string)separated[3]][0],
-                    [6] = MIDDLE_VOWELS[(string)separated[4]][1],
-                    [7] = MIDDLE_VOWELS[(string)separated[4]][2],
-                    [8] = LAST_CONSONANTS[(string)separated[5]][1],
-                    [9] = LAST_CONSONANTS[(string)separated[5]][0],
-
-                    // 뒤의 노트
-                    [10] = FIRST_CONSONANTS[(string)separated[6]][0],
-                    [11] = MIDDLE_VOWELS[(string)separated[7]][1],
-                    [12] = MIDDLE_VOWELS[(string)separated[7]][2],
-                    [13] = LAST_CONSONANTS[(string)separated[8]][1],
-                    [14] = LAST_CONSONANTS[(string)separated[8]][0]
-                };
-
-                return separatedConvertedForCBNN;
-            }
-
+            
+            /// <summary>
+            /// Conducts phoneme variation automatically with prevNeighbour, note, nextNeighbour, in CBNN format.  
+            /// <br/><br/> prevNeighbour, note, nextNeighbour를 입력받아 자동으로 음운 변동을 진행하고, 결과물을 CBNN 식으로 변경합니다.
+            /// </summary>
+            /// <param name="prevNeighbour"> Note of prev note, if exists(otherwise null).
+            /// <br/> 이전 노트 혹은 null.
+            /// <br/><br/>(Example: Note with lyric '춘')
+            /// </param>
+            /// <param name="note"> Note of current note. 
+            /// <br/> 현재 노트.
+            /// <br/><br/>(Example: Note with lyric '향')
+            /// </param>
+            /// <param name="nextNeighbour"> Note of next note, if exists(otherwise null).
+            /// <br/> 다음 노트 혹은 null.
+            /// <br/><br/>(Example: null)
+            /// </param>
+            /// <returns> Returns phoneme variation result of prevNote, currentNote, nextNote.
+            /// <br/>이전 노트, 현재 노트, 다음 노트의 음운변동 결과를 CBNN 식으로 변환해 반환합니다.
+            /// <br/>Example: 춘 [향] null: {[0]="ch", [1]="", [1]="u", [3]="", [4]="", 
+            /// <br/>[5]="n", [6]="y", [7]="a", [8]="2", [9]="ng", 
+            /// <br/>[10]="", [11]="", [12]="", [13]="", [14]=""} [추 냥 null]
+            /// </returns>
             public Hashtable convertForCBNN(Note? prevNeighbour, Note note, Note? nextNeighbour){
                 // Hangeul.separate() 함수 등을 사용해 [초성 중성 종성]으로 분리된 결과물을 CBNN식으로 변경
                 // 이 함수만 불러서 모든 것을 함 (1) [냥]냥
@@ -836,10 +978,37 @@ namespace OpenUtau.Plugin.Builtin {
             
         }
         
-
         
 
+        private string? findInOto(string phoneme, Note note, bool nullIfNotFound=false){
+            // 음소와 노트를 입력받고, 다음계 및 보이스컬러 에일리어스를 적용한다. 
+            // nullIfNotFound가 true이면 음소가 찾아지지 않을 때 음소가 아닌 null을 리턴한다.
+            // nullIfNotFound가 false면 음소가 찾아지지 않을 때 그대로 음소를 반환
+            string phonemeToReturn;
+            string color = string.Empty;
+            int toneShift = 0;
+            int? alt = null;
+            if (phoneme.Equals("")) {
+                return phoneme;
+            }
+            
+            if (singer.TryGetMappedOto(phoneme + alt, note.tone + toneShift, color, out var otoAlt)) {
+                phonemeToReturn = otoAlt.Alias;
+            } else if (singer.TryGetMappedOto(phoneme, note.tone + toneShift, color, out var oto)) {
+                phonemeToReturn = oto.Alias;
+            } 
+            else if (singer.TryGetMappedOto(phoneme, note.tone, color, out oto)){
+                phonemeToReturn = oto.Alias;
+            }
+            else if (nullIfNotFound) {
+                phonemeToReturn = null;
+            }
+            else{
+                phonemeToReturn = phoneme;
+            }
 
+            return phonemeToReturn;
+        }
         // 2. Return Phonemes
         public override Result Process(Note[] notes, Note? prev, Note? next, Note? prevNeighbour, Note? nextNeighbour, Note[] prevNeighbours){
             Hashtable cbnnPhonemes;
@@ -861,24 +1030,48 @@ namespace OpenUtau.Plugin.Builtin {
             ///
 
             if ( phoneticHint != null){
-                // 발음 힌트가 있음 / 냥[nya2, ang]
-                string[] phoneticHints = phoneticHint.Split(','); // 쉼표로 구분해서 발음기호를 가져옴
+                // if there are phonetic hint
+                // 발음 힌트가 있음 
+                // 냥[nya2, ang]
+                string[] phoneticHints = phoneticHint.Split(','); // phonemes are seperated by ','.
                 int phoneticHintsLength = phoneticHints.Length; 
                 
                 
 
                 Phoneme[] phonemes = new Phoneme[phoneticHintsLength];
 
+                Dictionary<string, string> VVdictionary = new Dictionary<string, string>(){};
+
+                string[] VVsource = new string[] {"a", "i", "u", "e", "o", "eo", "eu"};
+
+
+                for (int i = 0; i < 7; i++){
+                    // VV 딕셔너리를 채운다
+                    // 나중에 발음기호에 ["a a"]를 입력하고 만일 음원에게 "a a"가 없을 경우, 자동으로 VVDictionary에서 "a a"에 해당하는 값인 "a"를 호출해 사용
+                    // (반대도 똑같이 적용)
+
+                    // VVDictionary 예시: {"a a", "a"} ...
+                    for (int j = 6; j >= 0; j--){
+                        VVdictionary[$"{VVsource[i]} {VVsource[j]}"] = $"{VVsource[j]}"; // CV/CVC >> CBNN 호환용
+                        VVdictionary[$"{VVsource[j]}"] = $"{VVsource[i]} {VVsource[j]}"; // CBNN >> CV/CVC 호환용
+                    }
+                    
+                }
 
                 for (int i = 0; i < phoneticHintsLength; i++){
-                    if (i == 0){
-                        // 첫 음소 배치
-                        phonemes[i] = new Phoneme {phoneme = phoneticHints[0].Trim()};
+                    string? alias = findInOto(phoneticHints[i].Trim(), note, true); // alias if exists, otherwise null
+                    
+                    if (alias != null){
+                        // 발음기호에 입력된 phoneme이 음원에 존재함
+
+                        if (i == 0){
+                        // first syllable
+                        phonemes[i] = new Phoneme {phoneme = alias};
                     }
                     else if ((i == phoneticHintsLength - 1) && ((phoneticHints[i].Trim().EndsWith('-')) || phoneticHints[i].Trim().EndsWith('R'))){
                         // 마지막 음소이고 끝음소(ex: a -, a R)일 경우, VCLengthShort에 맞춰 음소를 배치
                         phonemes[i] = new Phoneme {
-                            phoneme = phoneticHints[i].Trim(),
+                            phoneme = alias,
                             position = totalDuration - Math.Min(vcLengthShort, totalDuration / 8)
                             // 8등분한 길이로 끝에 숨소리 음소 배치, n등분했을 때의 음소 길이가 이보다 작다면 n등분했을 때의 길이로 간다
                         };
@@ -887,13 +1080,41 @@ namespace OpenUtau.Plugin.Builtin {
                         // 입력되는 발음힌트가 2개일 경우, 2등분되어 음소가 배치된다.
                         // 이 경우 부자연스러우므로 3등분해서 음소 배치하게 조정
                         phonemes[i] = new Phoneme {
-                            phoneme = phoneticHints[i].Trim(),
+                            phoneme = alias,
                             position = totalDuration - totalDuration / 3
                             // 3등분해서 음소가 배치됨
                         };
                     }
-                    
                     else {
+                        phonemes[i] = new Phoneme {
+                            phoneme = alias,
+                            position = totalDuration - ((totalDuration / phoneticHintsLength) * (phoneticHintsLength - i))
+                            // 균등하게 n등분해서 음소가 배치됨
+                        };
+                    }
+                    }
+                    
+                    else if (VVdictionary.ContainsKey(phoneticHints[i].Trim())){
+                        // 입력 실패한 음소가 VV 혹은 V일 때
+                        if (phoneticHintsLength == 2){
+                        // 입력되는 발음힌트가 2개일 경우, 2등분되어 음소가 배치된다.
+                        // 이 경우 부자연스러우므로 3등분해서 음소 배치하게 조정
+                        phonemes[i] = new Phoneme {
+                            phoneme = findInOto(VVdictionary[phoneticHints[i].Trim()], note),
+                            position = totalDuration - totalDuration / 3
+                            // 3등분해서 음소가 배치됨
+                        };
+                    }
+                    else{
+                        phonemes[i] = new Phoneme {
+                            phoneme = findInOto(VVdictionary[phoneticHints[i].Trim()], note),
+                            position = totalDuration - ((totalDuration / phoneticHintsLength) * (phoneticHintsLength - i))
+                            // 균등하게 n등분해서 음소가 배치됨
+                        };
+                    }
+                    }
+                    else{
+                        // 그냥 음원에 음소가 없음
                         phonemes[i] = new Phoneme {
                             phoneme = phoneticHints[i].Trim(),
                             position = totalDuration - ((totalDuration / phoneticHintsLength) * (phoneticHintsLength - i))
@@ -910,6 +1131,7 @@ namespace OpenUtau.Plugin.Builtin {
 
             else if (hanguel.isHangeul(lyric)){
                 try{
+                    // change lyric to CBNN phonemes, with phoneme variation.
                     cbnnPhonemes = CBNN.convertForCBNN(prevNote, thisNote, nextNote); 
                 }
                 catch{
@@ -920,7 +1142,6 @@ namespace OpenUtau.Plugin.Builtin {
                         };
                 }
                 
-                // 음운변동이 진행됨 => 위에서 반환된 음소로 전부 때울 예정
 
                 // ex 냥냐 (nya3 ang nya)
                 string thisFirstConsonant = (string)cbnnPhonemes[5]; // n
@@ -938,7 +1159,12 @@ namespace OpenUtau.Plugin.Builtin {
 
                 string VV = $"{prevVowelTail} {thisVowelTail}"; // i a
                 string CV = $"{thisFirstConsonant}{thisVowelHead}{thisVowelTail}{thisSuffix}"; // nya4
+                string frontCV = $"- {CV}";
                 string cVC = $"{thisVowelTail}{thisLastConsonant}"; // ang 
+                
+                string endSoundVowel = $"{thisVowelTail} -"; // a -
+                string endSoundLastConsonant = $"{thisLastConsonant} -"; // ng -
+                
 
 
                 int cVCLength; // 받침 종류에 따라 길이가 달라짐 / 이웃이 있을 때에만 사용
@@ -993,6 +1219,7 @@ namespace OpenUtau.Plugin.Builtin {
 
                 string VC = $"{thisVowelTail} {nextFirstConsonant}"; // 다음에 이어질 VV, CVC에게는 해당 없음
 
+
                 if (! thisSuffix.Equals("")) {
                     // 접미사가 있는 발음일 때 / nya2
                     if (singer.TryGetMappedOto($"{CV}", thisNote.tone, out UOto oto)) {
@@ -1005,7 +1232,26 @@ namespace OpenUtau.Plugin.Builtin {
                     }
                     
                 }
+
+                // set Voice color & Tone
+
+                frontCV = findInOto(frontCV, note, true);
+                CV = findInOto(CV, note);
+                VC = findInOto(VC, note, true);
+                VV = findInOto(VV, note, true);
+                cVC = findInOto(cVC, note);
+                endSoundVowel = findInOto(endSoundVowel, note);
+                endSoundLastConsonant = findInOto(endSoundLastConsonant, note);
                 
+                if (frontCV == null){
+                    frontCV = CV;
+                }
+                if (VV == null){
+                    // VV음소 없으면 (ex : a i) 대응하는 CV음소 사용 (ex:  i)
+                    VV = CV;
+                }
+
+                // Return phonemes
                 if ((prevNeighbour == null) && (nextNeighbour == null)){
                     // 이웃이 없음 / 냥
                     
@@ -1013,8 +1259,8 @@ namespace OpenUtau.Plugin.Builtin {
                     
                         return new Result(){
                         phonemes = new Phoneme[] { 
-                            new Phoneme { phoneme = $"- {CV}"},
-                            new Phoneme { phoneme = $"{thisVowelTail} -",
+                            new Phoneme { phoneme = $"{frontCV}"},
+                            new Phoneme { phoneme = $"{endSoundVowel}",
                             position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)},
                             }
                         };
@@ -1023,11 +1269,9 @@ namespace OpenUtau.Plugin.Builtin {
                         // 이웃 없고 받침 있음 - ㄴㄹㅇㅁ / 냥
                         return new Result(){
                         phonemes = new Phoneme[] { 
-                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{frontCV}"},
                             new Phoneme { phoneme = $"{cVC}",
                             position = totalDuration - Math.Min(totalDuration / 3, cVCLength)},
-                            new Phoneme { phoneme = $"{thisLastConsonant} -",
-                            position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)},
                             }
                         };
                     }
@@ -1035,7 +1279,7 @@ namespace OpenUtau.Plugin.Builtin {
                         // 이웃 없고 받침 있음 - 나머지 / 냑
                         return new Result(){
                         phonemes = new Phoneme[] { 
-                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{frontCV}"},
                             new Phoneme { phoneme = $"{cVC}",
                             position = totalDuration - Math.Min(totalDuration / 3, cVCLength)},
                             }
@@ -1051,8 +1295,8 @@ namespace OpenUtau.Plugin.Builtin {
                             return new Result(){
                         phonemes = new Phoneme[] { 
                             new Phoneme { phoneme = $"{VV}"},
-                            new Phoneme { phoneme = $"{thisVowelTail} -",
-                            position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)},
+                            new Phoneme { phoneme = $"{endSoundVowel}",
+                            position = totalDuration - Math.Min(totalDuration / 8, vcLengthShort)},
                             }
                         };
                         }
@@ -1061,8 +1305,8 @@ namespace OpenUtau.Plugin.Builtin {
                             return new Result(){
                         phonemes = new Phoneme[] { 
                             new Phoneme { phoneme = $"{CV}"},
-                            new Phoneme { phoneme = $"{thisVowelTail} -",
-                            position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)}
+                            new Phoneme { phoneme = $"{endSoundVowel}",
+                            position = totalDuration - Math.Min(totalDuration / 8, vcLengthShort)}
                             }
                         };
                         }
@@ -1073,8 +1317,8 @@ namespace OpenUtau.Plugin.Builtin {
                                 return new Result(){
                         phonemes = new Phoneme[] { 
                             new Phoneme { phoneme = $"{CV}"},
-                            new Phoneme { phoneme = $"{thisVowelTail} -",
-                            position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)},
+                            new Phoneme { phoneme = $"{endSoundVowel}",
+                            position = totalDuration - Math.Min(totalDuration / 8, vcLengthShort)},
                             }
                         };
                             }
@@ -1082,9 +1326,9 @@ namespace OpenUtau.Plugin.Builtin {
                                 // 이외 음소는 - CV로 이음
                                 return new Result(){
                             phonemes = new Phoneme[] { 
-                            new Phoneme { phoneme = $"- {CV}"},
-                            new Phoneme { phoneme = $"{thisVowelTail} -",
-                            position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)},
+                            new Phoneme { phoneme = $"{frontCV}"},
+                            new Phoneme { phoneme = $"{endSoundVowel}",
+                            position = totalDuration - Math.Min(totalDuration / 8, vcLengthShort)},
                             }
                         };
                             }
@@ -1111,7 +1355,7 @@ namespace OpenUtau.Plugin.Builtin {
                         phonemes = new Phoneme[] { 
                             new Phoneme { phoneme = $"{CV}"},
                             new Phoneme { phoneme = $"{cVC}",
-                            position = totalDuration - Math.Min(totalDuration / 3, vcLength)},
+                            position = totalDuration - Math.Min(totalDuration / 3, vcLength),},
                             }
                         };
                         }
@@ -1132,10 +1376,10 @@ namespace OpenUtau.Plugin.Builtin {
                                 // 이외 음소는 - CV로 이음
                                 return new Result(){
                         phonemes = new Phoneme[] { 
-                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{frontCV}"},
                             new Phoneme { phoneme = $"{cVC}",
                             position = totalDuration - Math.Min(totalDuration / 3, cVCLength)},
-                            new Phoneme { phoneme = $"{thisLastConsonant} -",
+                            new Phoneme { phoneme = $"{endSoundLastConsonant}",
                             position = totalDuration - Math.Min(totalDuration / 8, vcLengthShort)},
                             }
                         };
@@ -1166,17 +1410,24 @@ namespace OpenUtau.Plugin.Builtin {
                             // 뒤에 VV 와야해서 VC 오면 안됨
                             return new Result(){
                         phonemes = new Phoneme[] { 
-                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{frontCV}"},
                             }
                         };
                         }
-                        
-                        else{
+                        else if (VC != null){
                             return new Result(){
                         phonemes = new Phoneme[] { 
-                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{frontCV}"},
                             new Phoneme { phoneme = $"{VC}",
                             position = totalDuration - Math.Min(totalDuration / 3, vcLength)},
+                            }
+                        };
+                        }
+                        else{
+                            // 음원에 VC 존재하지 않음
+                            return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{frontCV}"},
                             }
                         };
                         }
@@ -1188,7 +1439,7 @@ namespace OpenUtau.Plugin.Builtin {
                             return new Result(){
                         phonemes = new Phoneme[] {
                             // 다음 음소가 ㄴㅇㄹㅁㄱㄷㅂ 임 
-                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{frontCV}"},
                             new Phoneme { phoneme = $"{cVC}",
                             position = totalDuration - Math.Min(totalDuration / 2, cVCLength)},
                             }// -음소 없이 이어줌
@@ -1198,10 +1449,10 @@ namespace OpenUtau.Plugin.Builtin {
                             // 다음 음소가 나머지임
                             return new Result(){
                         phonemes = new Phoneme[] { 
-                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{frontCV}"},
                             new Phoneme { phoneme = $"{cVC}",
                             position = totalDuration - Math.Min(totalDuration / 2, cVCLength)},
-                            new Phoneme { phoneme = $"{thisLastConsonant} -",
+                            new Phoneme { phoneme = $"{endSoundLastConsonant}",
                             position = totalDuration - totalDuration / 2},
                             }// -음소 있이 이어줌
                         };
@@ -1212,7 +1463,7 @@ namespace OpenUtau.Plugin.Builtin {
                         // 앞이웃만 없고 받침 있음 - 나머지 / [꺅]꺄
                         return new Result(){
                         phonemes = new Phoneme[] { 
-                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{frontCV}"},
                             new Phoneme { phoneme = $"{cVC}",
                             position = totalDuration - Math.Min(totalDuration / 2, cVCLength)},
                             }
@@ -1223,14 +1474,14 @@ namespace OpenUtau.Plugin.Builtin {
                         if (thisLastConsonant.Equals("")){
                             return new Result(){
                         phonemes = new Phoneme[] { 
-                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{frontCV}"},
                             }
                         };
                         }
                         else{
                         return new Result(){
                         phonemes = new Phoneme[] { 
-                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{frontCV}"},
                             new Phoneme { phoneme = $"{cVC}",
                             position = totalDuration - Math.Min(totalDuration / 3, cVCLength)},
                             }
@@ -1261,13 +1512,24 @@ namespace OpenUtau.Plugin.Builtin {
                         }
                         else if ((prevSuffix.Equals("")) && (prevLastConsonant.Equals("")) && (thisFirstConsonant.Equals("")) && (thisVowelHead.Equals(""))){
                             // 앞에 받침 없는 모음 / 뒤에 자음 옴 / 냐[아]냐
-                            return new Result(){
+                            if (VC != null){
+                                return new Result(){
                         phonemes = new Phoneme[] { 
                             new Phoneme { phoneme = $"{VV}"},
                             new Phoneme { phoneme = $"{VC}",
                             position = totalDuration - Math.Min(totalDuration / 3, vcLength)},
                             }
                         };
+                            }
+                            else{
+                                // 음원에 VC 존재하지 않음
+                                return new Result(){
+                        phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{VV}"},
+                            }
+                        };
+                            }
+                            
                         }
                         else {
                             // 앞에 받침 있고 뒤에 모음 옴 / 냐[냐]아  냥[아]아
@@ -1276,7 +1538,7 @@ namespace OpenUtau.Plugin.Builtin {
                                     // ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
                                     return new Result(){
                             phonemes = new Phoneme[] { 
-                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{frontCV}"},
                             }
                         };
                                 }
@@ -1294,23 +1556,46 @@ namespace OpenUtau.Plugin.Builtin {
                                 // 앞에 받침 있고 뒤에 모음 안옴
                                 if ((! prevLastConsonant.Equals("")) && ((thisFirstConsonant.Equals("gg")) || (thisFirstConsonant.Equals("ch")) || (thisFirstConsonant.Equals("dd")) || (thisFirstConsonant.Equals("bb")) || (thisFirstConsonant.Equals("ss")) || (thisFirstConsonant.Equals("jj")) || (thisFirstConsonant.Equals("k")) || (thisFirstConsonant.Equals("t")) || (thisFirstConsonant.Equals("p")))){
                                     // ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
-                                    return new Result(){
+                                    if (VC != null){
+                                        return new Result(){
                             phonemes = new Phoneme[] { 
-                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{frontCV}"},
                             new Phoneme { phoneme = $"{VC}",
                             position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)},
                             }
                         };
+                                    }
+                                    else{
+                                        // 음원에 VC 존재하지 않음
+                                        return new Result(){
+                            phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{frontCV}"},
+                            }
+                        };
+                                    }
+                                    
                                 }
                                 else {
                                     // 나머지 / CV로 시작
-                                    return new Result(){
+                                    if (VC != null){
+                                        return new Result(){
                             phonemes = new Phoneme[] { 
                             new Phoneme { phoneme = $"{CV}"},
                             new Phoneme { phoneme = $"{VC}",
                             position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)},
                             }
                         };
+                                    }
+                                    else{
+                                        // 음원에 VC 존재하지 않음
+                                        return new Result(){
+                            phonemes = new Phoneme[] { 
+                            new Phoneme { phoneme = $"{CV}"},
+                            }
+                        };
+                                    }
+                                    
+                                    
                                 }
                                 
                                 
@@ -1341,7 +1626,7 @@ namespace OpenUtau.Plugin.Builtin {
                                     // ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함
                                     return new Result(){
                         phonemes = new Phoneme[] { 
-                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{frontCV}"},
                             new Phoneme { phoneme = $"{cVC}",
                             position = totalDuration - Math.Min(totalDuration / 2, cVCLength),}
                             }
@@ -1369,7 +1654,7 @@ namespace OpenUtau.Plugin.Builtin {
                             new Phoneme { phoneme = $"{VV}"},
                             new Phoneme { phoneme = $"{cVC}",
                             position = totalDuration - Math.Min(totalDuration / 2, cVCLength)},
-                            new Phoneme { phoneme = $"{thisLastConsonant} -",
+                            new Phoneme { phoneme = $"{endSoundLastConsonant}",
                             position = totalDuration - totalDuration / 2}
                             }
                         };
@@ -1380,10 +1665,10 @@ namespace OpenUtau.Plugin.Builtin {
                                     // ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
                                     return new Result(){
                         phonemes = new Phoneme[] { 
-                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{frontCV}"},
                             new Phoneme { phoneme = $"{cVC}",
                             position = totalDuration - Math.Min(totalDuration / 2, cVCLength)},
-                            new Phoneme { phoneme = $"{thisLastConsonant} -",
+                            new Phoneme { phoneme = $"{endSoundLastConsonant}",
                             position = totalDuration - totalDuration / 2},
                         }
                         };
@@ -1395,7 +1680,7 @@ namespace OpenUtau.Plugin.Builtin {
                             new Phoneme { phoneme = $"{CV}"},
                             new Phoneme { phoneme = $"{cVC}",
                             position = totalDuration - Math.Min(totalDuration / 2, cVCLength)},
-                            new Phoneme { phoneme = $"{thisLastConsonant} -",
+                            new Phoneme { phoneme = $"{endSoundLastConsonant}",
                             position = totalDuration - totalDuration / 2},
                         }
                         };
@@ -1415,7 +1700,7 @@ namespace OpenUtau.Plugin.Builtin {
                             new Phoneme { phoneme = $"{VV}"},
                             new Phoneme { phoneme = $"{cVC}",
                             position = totalDuration - Math.Min(totalDuration / 2, cVCLength)},
-                            new Phoneme { phoneme = $"{thisLastConsonant} -",
+                            new Phoneme { phoneme = $"{endSoundLastConsonant}",
                             position = totalDuration - totalDuration / 2}
                             }
                         };
@@ -1426,10 +1711,10 @@ namespace OpenUtau.Plugin.Builtin {
                                     // ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
                                 return new Result(){
                         phonemes = new Phoneme[] { 
-                            new Phoneme { phoneme = $"- {CV}"},
+                            new Phoneme { phoneme = $"{frontCV}"},
                             new Phoneme { phoneme = $"{cVC}",
                             position = totalDuration - Math.Min(totalDuration / 2, cVCLength)},
-                            new Phoneme { phoneme = $"{thisLastConsonant} -",
+                            new Phoneme { phoneme = $"{endSoundLastConsonant}",
                             position = totalDuration - totalDuration / 2}
                             }
                         };
@@ -1441,7 +1726,7 @@ namespace OpenUtau.Plugin.Builtin {
                             new Phoneme { phoneme = $"{CV}"},
                             new Phoneme { phoneme = $"{cVC}",
                             position = totalDuration - Math.Min(totalDuration / 2, cVCLength)},
-                            new Phoneme { phoneme = $"{thisLastConsonant} -",
+                            new Phoneme { phoneme = $"{endSoundLastConsonant}",
                             position = totalDuration - totalDuration / 2}
                             }
                         };
@@ -1646,6 +1931,7 @@ namespace OpenUtau.Plugin.Builtin {
                 };
                 }
             }
+            
             
            
         }
