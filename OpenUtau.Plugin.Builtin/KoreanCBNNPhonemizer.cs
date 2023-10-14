@@ -323,7 +323,7 @@ namespace OpenUtau.Plugin.Builtin {
                 if ((firstLastConsonant.Equals("ㄽ")) || (firstLastConsonant.Equals("ㄾ")) || (firstLastConsonant.Equals("ㄼ"))){
                     firstLastConsonant = "ㄹ";
                 }
-                else if ((firstLastConsonant.Equals("ㄵ")) || (firstLastConsonant.Equals("ㅅ")) || (firstLastConsonant.Equals("ㅆ")) || (firstLastConsonant.Equals("ㅈ")) || (firstLastConsonant.Equals("ㅉ")) || (firstLastConsonant.Equals("ㅊ"))){
+                else if ((firstLastConsonant.Equals("ㄵ")) || (firstLastConsonant.Equals("ㅅ")) || (firstLastConsonant.Equals("ㅆ")) || (firstLastConsonant.Equals("ㅈ")) || (firstLastConsonant.Equals("ㅉ")) || (firstLastConsonant.Equals("ㅊ")) || (firstLastConsonant.Equals("ㅌ"))){
                     firstLastConsonant = "ㄷ";
                 }
                 else if ((firstLastConsonant.Equals("ㅃ")) || (firstLastConsonant.Equals("ㅍ")) || (firstLastConsonant.Equals("ㄿ")) || (firstLastConsonant.Equals("ㅄ"))){
@@ -343,6 +343,12 @@ namespace OpenUtau.Plugin.Builtin {
                     // 예사소리로 끝나고 다음 소리가 예사소리이면 / ex) 닭장 = 닥짱
                     nextFirstConsonant = (string)fortisSounds[basicSounds[nextFirstConsonant]];
                 }
+                // else if ((firstLastConsonant.Equals("ㄹ")) && (basicSounds.Contains(nextFirstConsonant))){
+                //     // ㄹ로 끝나고 다음 소리가 예사소리이면 / ex) 솔직 = 솔찍
+                //     // 본래 관형형 어미 (으)ㄹ과 일부 한자어에서만 일어나는 변동이나, 워낙 사용되는 빈도가 많아서 기본으로 적용되게 해 두
+                //     // 려 했으나 좀 아닌 것 같아서 보류하기로 함
+                //     nextFirstConsonant = (string)fortisSounds[basicSounds[nextFirstConsonant]];
+                // }
 
                 // 1. 유기음화 2
                 if ((basicSounds.Contains(firstLastConsonant)) && (nextFirstConsonant.Equals("ㅎ"))){
@@ -634,34 +640,24 @@ namespace OpenUtau.Plugin.Builtin {
                     /// null[냥]냥
                     if (whereYeonEum == 1){
                         // 현재 노트에서 단어가 끝났다고 가정
-                        Hashtable result = variate(separate(lyrics[0]), variate(lyrics[1]), 0); // 첫 글자
-                        Hashtable thisNoteSeparated = variate(variate(separate(lyrics[0]), variate(lyrics[1]), 1), separate(lyrics[2]), -1); // 현 글자 / 끝글자처럼 음운변동시켜서 음원변동 한 번 더 하기
+                        Hashtable result = new Hashtable() {
+                        [0] = "null", // 앞 글자 없음
+                        [1] = "null",
+                        [2] = "null"
+                    };
+                        Hashtable thisNoteSeparated = variate(variate(lyrics[1]), separate(lyrics[2]), -1); // 현 글자 / 끝글자처럼 음운변동시켜서 음원변동 한 번 더 하기
 
                         result.Add(3, thisNoteSeparated[0]); // 현 글자
                         result.Add(4, thisNoteSeparated[1]);
                         result.Add(5, thisNoteSeparated[2]);
 
-                        result.Add(6, thisNoteSeparated[3]); // 뒤 글자 없음
+                        result.Add(6, thisNoteSeparated[3]); // 뒤 글자
                         result.Add(7, thisNoteSeparated[4]);
                         result.Add(8, thisNoteSeparated[5]);
 
                         return result;
                     }
-                    else if (whereYeonEum == 0){
-                        // 앞 노트에서 단어가 끝났다고 가정 
-                        Hashtable result = variate(variate(lyrics[0]), separate(lyrics[1]), 0); // 첫 글자
-                        Hashtable thisNoteSeparated = variate(variate(variate(lyrics[0]), separate(lyrics[1]), 1), separate(lyrics[2]), -1); // 첫 글자와 현 글자 / 앞글자를 끝글자처럼 음운변동시켜서 음원변동 한 번 더 하기
-
-                        result.Add(3, thisNoteSeparated[0]); // 현 글자
-                        result.Add(4, thisNoteSeparated[1]);
-                        result.Add(5, thisNoteSeparated[2]);
-
-                        result.Add(6, thisNoteSeparated[3]); // 뒤 글자 없음
-                        result.Add(7, thisNoteSeparated[4]);
-                        result.Add(8, thisNoteSeparated[5]);
-
-                        return result;
-                    }
+                    
                     else{
                         Hashtable result = new Hashtable() {
                         [0] = "null", // 앞 글자 없음
