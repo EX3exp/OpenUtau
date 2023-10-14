@@ -1022,7 +1022,7 @@ namespace OpenUtau.Plugin.Builtin {
             private Hanguel hanguel = new Hanguel();
 
             public CV(){}
-            public Hashtable convertForCV(Hashtable separated, bool[] setting){
+            private Hashtable convertForCV(Hashtable separated, bool[] setting){
                 // Hangeul.separate() 함수 등을 사용해 [초성 중성 종성]으로 분리된 결과물을 CV식으로 변경
                 Hashtable separatedConvertedForCV;
 
@@ -1055,10 +1055,42 @@ namespace OpenUtau.Plugin.Builtin {
                 return separatedConvertedForCV;
             }
 
+            private Hashtable convertForCVSingle(Hashtable separated, bool[] setting){
+                // Hangeul.separate() 함수 등을 사용해 [초성 중성 종성]으로 분리된 결과물을 CV식으로 변경
+                // 한 글자짜리 노트 받아서 반환함 (숨소리 생성용)
+                Hashtable separatedConvertedForCV;
+
+                separatedConvertedForCV = new Hashtable(){
+                    [0] = FIRST_CONSONANTS[(string)separated[0]][0], // n
+                    [1] = MIDDLE_VOWELS[(string)separated[1]][1], // y
+                    [2] = MIDDLE_VOWELS[(string)separated[1]][2], // a
+                    [3] = LAST_CONSONANTS[(string)separated[2]][0], // ng
+
+                    };
+
+                if ((setting[0]) && (separatedConvertedForCV[0].Equals("s")) && (separatedConvertedForCV[2].Equals("i"))){ 
+                    // [isUsingShi], isUsing_aX, isUsing_i, isRentan
+                    separatedConvertedForCV[0] = "sh"; // si to shi
+                }
+                else if ((! setting[2]) && (separated[1].Equals("ㅢ"))){
+                    // isUsingShi, isUsing_aX, [isUsing_i], isRentan
+                    separatedConvertedForCV[2] = "eu"; // to eui
+                }
+
+                return separatedConvertedForCV;
+            }
+
             public Hashtable convertForCV(Note? prevNeighbour, Note note, Note? nextNeighbour, bool[] setting){
                 // Hangeul.separate() 함수 등을 사용해 [초성 중성 종성]으로 분리된 결과물을 CV식으로 변경
                 // 이 함수만 불러서 모든 것을 함 (1) [냥]냥
                 return convertForCV(hanguel.variate(prevNeighbour, note, nextNeighbour), setting);
+                
+            }
+
+            public Hashtable convertForCV(Note? prevNeighbour, bool[] setting){
+                // Hangeul.separate() 함수 등을 사용해 [초성 중성 종성]으로 분리된 결과물을 CV식으로 변경
+                // 이 함수만 불러서 모든 것을 함 (1) [냥]냥
+                return convertForCVSingle(hanguel.variate(prevNeighbour?.lyric), setting);
                 
             }
 
@@ -1214,7 +1246,7 @@ namespace OpenUtau.Plugin.Builtin {
                         phonemes = phonemes
                         };
             }
-            else if (hanguel.isHangeul(lyric)){
+            else if (hanguel.isHangeul(lyric) && (! lyric.Equals("-")) && (! lyric.Equals("R"))){
                 try{
                     cvPhonemes = cv.convertForCV(prevNote, thisNote, nextNote, new bool[]{isUsingShi, isUsing_aX, isUsing_i, isRentan}); // [isUsingShi], isUsing_aX, isUsing_i, isRentan
                 // 음운변동이 진행됨 => 위에서 반환된 음소로 전부 때울 예정
@@ -1867,10 +1899,11 @@ namespace OpenUtau.Plugin.Builtin {
                 
                  // TODO 로마자 음소입력 구현
                 string phonemeToReturn = lyric; // 아래에서 아무것도 안 걸리면 그냥 가사 반환
+                string prevLyric = prevNote?.lyric;
 
-                if (thisNote.lyric == "-"){
-                    if (hanguel.isHangeul(prevNote?.lyric)){
-                        cvPhonemes = cv.convertForCV(prevNote, thisNote, nextNote, new bool[]{isUsingShi, isUsing_aX, isUsing_i, isRentan}); // [isUsingShi], isUsing_aX, isUsing_i, isRentan
+                if (phonemeToReturn.Equals("-")){
+                    if (hanguel.isHangeul(prevLyric)){
+                        cvPhonemes = cv.convertForCV(prevNote, new bool[]{isUsingShi, isUsing_aX, isUsing_i, isRentan}); // [isUsingShi], isUsing_aX, isUsing_i, isRentan
                 
                         string prevVowelTail = (string)cvPhonemes[2]; // V이전 노트의 모음 음소 
                         string prevLastConsonant = (string)cvPhonemes[3]; // 이전 노트의 받침 음소
@@ -1890,9 +1923,9 @@ namespace OpenUtau.Plugin.Builtin {
                             }
                 };
                 }
-                else if (thisNote.lyric == "R"){
-                    if (hanguel.isHangeul(prevNote?.lyric)){
-                        cvPhonemes = cv.convertForCV(prevNote, thisNote, nextNote, new bool[]{isUsingShi, isUsing_aX, isUsing_i, isRentan}); // [isUsingShi], isUsing_aX, isUsing_i, isRentan
+                else if (phonemeToReturn.Equals("R")){
+                    if (hanguel.isHangeul(prevLyric)){
+                        cvPhonemes = cv.convertForCV(prevNote, new bool[]{isUsingShi, isUsing_aX, isUsing_i, isRentan}); // [isUsingShi], isUsing_aX, isUsing_i, isRentan
                 
                         string prevVowelTail = (string)cvPhonemes[2]; // V이전 노트의 모음 음소 
                         string prevLastConsonant = (string)cvPhonemes[3]; // 이전 노트의 받침 음소

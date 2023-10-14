@@ -437,7 +437,7 @@ namespace OpenUtau.Plugin.Builtin {
             /// </param>
             /// <returns>(Example(삵): {[0]="ㅅ", [1]="ㅏ", [2]="ㄱ"} - 삭)
             /// </returns>
-            private Hashtable variate(string character){
+            public Hashtable variate(string character){
                 /// 맨 끝 노트에서 음운변동 적용하는 함수
                 /// 자음군 단순화와 평파열음화
                 Hashtable separated = separate(character);
@@ -946,6 +946,33 @@ namespace OpenUtau.Plugin.Builtin {
                 return separatedConvertedForCBNN;
             }
 
+            /// <summary>
+            /// Converts result of Hangeul.variate(charcter) into CBNN format.
+            /// <br/>Hangeul.variate(character)를 사용한 결과물을 받아 CBNN식으로 변경합니다.
+            /// </summary>
+            /// <param name="separated">
+            /// result of Hangeul.variate(Note? prevNeighbour, Note note, Note? nextNeighbour).
+            /// </param>
+            /// <returns>
+            /// Returns CBNN formated result. 
+            /// </returns>
+            private Hashtable convertForCBNNSingle(Hashtable separated){
+                // inputs and returns only one character. (한 글자짜리 인풋만 받음)
+                Hashtable separatedConvertedForCBNN;
+
+                separatedConvertedForCBNN = new Hashtable(){
+                    // first character
+                    [0] = FIRST_CONSONANTS[(string)separated[0]][0], //n
+                    [1] = MIDDLE_VOWELS[(string)separated[1]][1], // y
+                    [2] = MIDDLE_VOWELS[(string)separated[1]][2], // a
+                    [3] = LAST_CONSONANTS[(string)separated[2]][1], // 3
+                    [4] = LAST_CONSONANTS[(string)separated[2]][0], // ng
+
+                    };
+
+                return separatedConvertedForCBNN;
+            }
+
             
             /// <summary>
             /// Conducts phoneme variation automatically with prevNeighbour, note, nextNeighbour, in CBNN format.  
@@ -973,6 +1000,13 @@ namespace OpenUtau.Plugin.Builtin {
                 // Hangeul.separate() 함수 등을 사용해 [초성 중성 종성]으로 분리된 결과물을 CBNN식으로 변경
                 // 이 함수만 불러서 모든 것을 함 (1) [냥]냥
                 return convertForCBNN(hanguel.variate(prevNeighbour, note, nextNeighbour));
+                
+            }
+
+            public Hashtable convertForCBNN(Note? prevNeighbour){
+                // Hangeul.separate() 함수 등을 사용해 [초성 중성 종성]으로 분리된 결과물을 CBNN식으로 변경
+                // 이 함수만 불러서 모든 것을 함 (1) [냥]냥
+                return convertForCBNNSingle(hanguel.variate(prevNeighbour?.lyric));
                 
             }
             
@@ -1129,7 +1163,7 @@ namespace OpenUtau.Plugin.Builtin {
                         };
             }
 
-            else if (hanguel.isHangeul(lyric)){
+            else if (hanguel.isHangeul(lyric) && (! lyric.Equals("-")) && (! lyric.Equals("R"))){
                 try{
                     // change lyric to CBNN phonemes, with phoneme variation.
                     cbnnPhonemes = CBNN.convertForCBNN(prevNote, thisNote, nextNote); 
@@ -1878,10 +1912,11 @@ namespace OpenUtau.Plugin.Builtin {
                 
                  // TODO 로마자 음소입력 구현
                 string phonemeToReturn = lyric; // 아래에서 아무것도 안 걸리면 그냥 가사 반환
+                string prevLyric = prevNote?.lyric;
 
-                if (thisNote.lyric == "-"){
-                    if (hanguel.isHangeul(prevNote?.lyric)){
-                        cbnnPhonemes = CBNN.convertForCBNN(prevNote, thisNote, nextNote);
+                if (thisNote.lyric.Equals("-")){
+                    if (hanguel.isHangeul(prevLyric)){
+                        cbnnPhonemes = CBNN.convertForCBNN(prevNote);
                 
                         string prevVowelTail = (string)cbnnPhonemes[2]; // V이전 노트의 모음 음소 
                         string prevLastConsonant = (string)cbnnPhonemes[4]; // 이전 노트의 받침 음소
@@ -1901,9 +1936,9 @@ namespace OpenUtau.Plugin.Builtin {
                             }
                 };
                 }
-                else if (thisNote.lyric == "R"){
-                    if (hanguel.isHangeul(prevNote?.lyric)){
-                        cbnnPhonemes = CBNN.convertForCBNN(prevNote, thisNote, nextNote);
+                else if (thisNote.lyric.Equals("R")){
+                    if (hanguel.isHangeul(prevLyric)){
+                        cbnnPhonemes = CBNN.convertForCBNN(prevNote);
                 
                         string prevVowelTail = (string)cbnnPhonemes[2]; // V이전 노트의 모음 음소 
                         string prevLastConsonant = (string)cbnnPhonemes[4]; // 이전 노트의 받침 음소
