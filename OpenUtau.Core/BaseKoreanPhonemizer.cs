@@ -104,9 +104,9 @@ namespace OpenUtau.Core {
                             };
         }
         public override Result Process(Note[] notes, Note? prev, Note? next, Note? prevNeighbour, Note? nextNeighbour, Note[] prevNeighbours) {
-            /// it does: - generate phonemes according to phoneme hints (each phonemes should be separated by ",". (Example: "a, a i, ya"))
-            /// it does not: - generate phonemes (so should implement convertPhonemes() Method in child class.)
-            ///              - generate Endsounds (so should implement generateEndSound() Method in child class.)
+            /// what it does: - generating phonemes according to phoneme hints (each phonemes should be separated by ",". (Example: "a, a i, ya"))
+            /// what it does not: - generating phonemes (so should implement convertPhonemes() Method in child class.)
+            ///              - generating Endsounds (so should implement generateEndSound() Method in child class.)
             Hanguel hanguel = new Hanguel();
 
             Note note = notes[0];

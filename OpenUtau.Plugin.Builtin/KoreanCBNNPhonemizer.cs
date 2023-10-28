@@ -390,7 +390,6 @@ namespace OpenUtau.Plugin.Builtin {
                 nextFirstConsonantType = Enum.Parse<ConsonantType>(FIRST_CONSONANTS[(string)variated[6]][1]);
                 nextLastConsonantType = Enum.Parse<BatchimType>(LAST_CONSONANTS[(string)variated[8]][2]);
                 return convertForCBNN(variated);
-
             }
 
             public Hashtable convertForCBNN(Note? prevNeighbour) {
@@ -749,8 +748,6 @@ namespace OpenUtau.Plugin.Builtin {
                 }
             }
 
-            
-
             /// <summary>
             /// 종성이 비음인지 판단합니다.
             /// </summary>
@@ -822,10 +819,8 @@ namespace OpenUtau.Plugin.Builtin {
                     return false;
                 }
             }
-
-            
-
         }
+        
         public override Result convertPhonemes(Note[] notes, Note? prev, Note? next, Note? prevNeighbour, Note? nextNeighbour, Note[] prevNeighbours) {
             Hashtable cbnnPhonemes;
 
@@ -843,11 +838,18 @@ namespace OpenUtau.Plugin.Builtin {
             Hanguel hanguel = new Hanguel();
             CBNN CBNN = new CBNN(singer, thisNote, totalDuration, vcLength, vcLengthShort);
 
-
+            try{
                 // change lyric to CBNN phonemes, with phoneme variation.
                 cbnnPhonemes = CBNN.convertForCBNN(prevNote, thisNote, nextNote);
-
-
+            }
+            catch {
+                return new Result() {
+                    phonemes = new Phoneme[] {
+                            new Phoneme { phoneme = lyric},
+                            }
+                };
+            }
+                
 
             // Return phonemes
             if ((prevNeighbour == null) && (nextNeighbour == null)) { // No neighbours / 냥
