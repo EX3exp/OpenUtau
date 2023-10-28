@@ -4,6 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenUtau.Api;
 using OpenUtau.Core.Ustx;
+using OpenUtau.Core;
+using SharpCompress;
+using OpenUtau.Core.Util;
 
 
 // TODO: refactoring code
@@ -44,7 +47,7 @@ namespace OpenUtau.Plugin.Builtin {
 
 
 
-        private class KoreanCVIniSetting : IniSetting {
+        private class KoreanCVIniSetting : BaseIniManager{
             protected override void iniSetUp(IniFile iniFile) {
                 // ko-CV.ini
                 setOrReadThisValue("CV", "Use rentan", false); // 연단음 사용 유무 - 기본값 false
@@ -165,6 +168,8 @@ namespace OpenUtau.Plugin.Builtin {
             private Hanguel hanguel = new Hanguel();
 
             public CV() { }
+
+            
             private Hashtable convertForCV(Hashtable separated, bool[] setting) {
                 // Hangeul.separate() 함수 등을 사용해 [초성 중성 종성]으로 분리된 결과물을 CV식으로 변경
                 Hashtable separatedConvertedForCV;
@@ -284,8 +289,8 @@ namespace OpenUtau.Plugin.Builtin {
 
             string cVC;
             string frontCV; // 연단음일 때엔 -가 붙은 형식으로 저장되는 변수 
-            string? endSoundVowel = findInOto($"{thisVowelTail} -", note, true);
-            string? endSoundLastConsonant = findInOto($"{thisLastConsonant} -", note, true);
+            string? endSoundVowel = findInOto(singer, $"{thisVowelTail} -", note, true);
+            string? endSoundLastConsonant = findInOto(singer, $"{thisLastConsonant} -", note, true);
 
             int cVCLength; // 받침 종류에 따라 길이가 달라짐 / 이웃이 있을 때에만 사용
 
@@ -342,21 +347,21 @@ namespace OpenUtau.Plugin.Builtin {
 
             if (isRentan) {
                 // 연단음 / 어두 음소(-) 사용 
-                if (findInOto($"- {CV}", note, true) == null) {
-                    if (findInOto($"-{CV}", note, true) == null) {
-                        frontCV = findInOto($"-{CV}", note, true);
-                        CV = findInOto($"{CV}", note);
+                if (findInOto(singer, $"- {CV}", note, true) == null) {
+                    if (findInOto(singer, $"-{CV}", note, true) == null) {
+                        frontCV = findInOto(singer, $"-{CV}", note, true);
+                        CV = findInOto(singer, $"{CV}", note);
                     }
-                    frontCV = findInOto($"-{CV}", note, true);
-                    CV = findInOto($"{CV}", note);
+                    frontCV = findInOto(singer, $"-{CV}", note, true);
+                    CV = findInOto(singer, $"{CV}", note);
                 } else {
-                    CV = findInOto($"{CV}", note);
+                    CV = findInOto(singer, $"{CV}", note);
                     frontCV = CV;
                 }
 
             } else {
                 // 연단음 아님 / 어두 음소(-) 미사용
-                CV = findInOto($"{CV}", note);
+                CV = findInOto(singer, $"{CV}", note);
                 frontCV = CV;
 
             }
@@ -373,9 +378,9 @@ namespace OpenUtau.Plugin.Builtin {
             string VC = $"{thisVowelTail} {nextFirstConsonant}"; // 다음에 이어질 VC, CVC에게는 해당 없음
 
 
-            VC = findInOto(VC, note);
-            VV = findInOto(VV, note);
-            cVC = findInOto(cVC, note);
+            VC = findInOto(singer, VC, note);
+            VV = findInOto(singer, VV, note);
+            cVC = findInOto(singer, cVC, note);
             if (endSoundVowel == null) {
                 endSoundVowel = "";
             }
