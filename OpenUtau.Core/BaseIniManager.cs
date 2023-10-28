@@ -8,9 +8,12 @@ using OpenUtau.Core.Ustx;
             public BaseIniManager() { }
 
 
+            /// <summary>
+            /// if no [iniFileName] in Singer Directory, it makes new [iniFileName] with settings in [iniSetUp(iniFile)].
+            /// </summary>
+            /// <param name="singer"></param>
+            /// <param name="iniFileName"></param>
             public void initialize(USinger singer, string iniFileName) {
-
-                // if no [iniFileName] in Singer Directory, it makes new [iniFileName] with settings in iniSetUp(iniFile).
                 this.singer = singer;
                 this.iniFileName = iniFileName;
                 try {
@@ -23,8 +26,8 @@ using OpenUtau.Core.Ustx;
             }
 
             /// <summary>
-            /// <para>you can override this method with your own values...</para> 
-                /// !! must use [setOrReadThisValue(string sectionName, string keyName, bool/string/int/double value)] when setting or reading values.
+            /// <para>you can override this method with your own values. </para> 
+                /// !! when implement this method, you have to use [setOrReadThisValue(string sectionName, string keyName, bool/string/int/double value)] when setting or reading values.
                 /// <para>(ex)
                 /// setOrReadThisValue("sectionName", "keyName", true);</para>
                 /// </summary>

@@ -820,7 +820,7 @@ namespace OpenUtau.Plugin.Builtin {
                 }
             }
         }
-        
+
         public override Result convertPhonemes(Note[] notes, Note? prev, Note? next, Note? prevNeighbour, Note? nextNeighbour, Note[] prevNeighbours) {
             Hashtable cbnnPhonemes;
 
@@ -843,11 +843,7 @@ namespace OpenUtau.Plugin.Builtin {
                 cbnnPhonemes = CBNN.convertForCBNN(prevNote, thisNote, nextNote);
             }
             catch {
-                return new Result() {
-                    phonemes = new Phoneme[] {
-                            new Phoneme { phoneme = lyric},
-                            }
-                };
+                return generateResult(lyric);
             }
                 
 

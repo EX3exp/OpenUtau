@@ -264,11 +264,7 @@ namespace OpenUtau.Plugin.Builtin {
                 cvPhonemes = cv.convertForCV(prevNote, thisNote, nextNote, new bool[] { isUsingShi, isUsing_aX, isUsing_i, isRentan }); // [isUsingShi], isUsing_aX, isUsing_i, isRentan
                                                                                                                                         // 음운변동이 진행됨 => 위에서 반환된 음소로 전부 때울 예정
             } catch {
-                return new Result() {
-                    phonemes = new Phoneme[] {
-                            new Phoneme { phoneme = lyric},
-                            }
-                };
+                return generateResult(lyric);
             }
 
 
@@ -396,22 +392,10 @@ namespace OpenUtau.Plugin.Builtin {
                 // 이웃이 없음 / 냥
 
                 if (thisLastConsonant.Equals("")) { // 이웃 없고 받침 없음 / 냐
-                    return new Result() {
-                        phonemes = new Phoneme[] {
-                            new Phoneme { phoneme = $"{frontCV}"},
-                            new Phoneme { phoneme = $"{endSoundVowel}",
-                            position = totalDuration - Math.Min(totalDuration / 3, vcLengthShort)},
-                            }
-                    };
+                    return generateResult(frontCV, endSoundVowel, vcLengthShort, 3);
                 } else if ((thisLastConsonant.Equals("n")) || (thisLastConsonant.Equals("l")) || (thisLastConsonant.Equals("ng")) || (thisLastConsonant.Equals("m"))) {
                     // 이웃 없고 받침 있음 - ㄴㄹㅇㅁ / 냥
-                    return new Result() {
-                        phonemes = new Phoneme[] {
-                            new Phoneme { phoneme = $"{frontCV}"},
-                            new Phoneme { phoneme = $"{cVC}",
-                            position = totalDuration - Math.Min(totalDuration / 3, vcLength)},
-                            }
-                    };
+                    return generateResult(frontCV, cVC, vcLength, 3);
                 } else {
                     // 이웃 없고 받침 있음 - 나머지 / 냑
                     return new Result() {
