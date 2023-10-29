@@ -7,63 +7,57 @@ using OpenUtau.Core;
 using OpenUtau.Core.Ustx;
 using OpenUtau.Core.Util;
 
-// TODO: refactoring code
+
 namespace OpenUtau.Plugin.Builtin {
     /// Phonemizer for 'KOR CBNN(Combination)' ///
     
-
     [Phonemizer("Korean CBNN Phonemizer", "KO CBNN", "EX3", language: "KO")]
 
-    
-    public class KoreanCBNNPhonemizer : Core.BaseKoreanPhonemizer {
+    public class KoreanCBNNPhonemizer : BaseKoreanPhonemizer {
         private class CBNN {
-             /// <summary>
-        /// First Consonant's type.
-        /// </summary>
-            public enum ConsonantType{
-       
-        /// 
-        /// <summary>예사소리</summary>
-        NORMAL, 
-        /// <summary>거센소리</summary>
-        ASPIRATE, 
-        /// <summary>된소리</summary>
-        FORTIS, 
-        /// <summary>마찰음</summary>
-        FRICATIVE, 
-        /// <summary>비음</summary>
-        NASAL,
-        /// <summary>유음</summary>
-        LIQUID, 
-        /// <summary>ㅎ</summary>
-        H,
-        /// <summary>자음의 음소값 없음(ㅇ)</summary>
-        NOCONSONANT, 
-        /// <summary>음소 자체가 없음</summary>
-        PHONEME_IS_NULL
-    }
+            /// <summary>
+            /// First Consonant's type.
+            /// </summary>
+            public enum ConsonantType{ 
+                /// <summary>예사소리</summary>
+                NORMAL, 
+                /// <summary>거센소리</summary>
+                ASPIRATE, 
+                /// <summary>된소리</summary>
+                FORTIS, 
+                /// <summary>마찰음</summary>
+                FRICATIVE, 
+                /// <summary>비음</summary>
+                NASAL,
+                /// <summary>유음</summary>
+                LIQUID, 
+                /// <summary>ㅎ</summary>
+                H,
+                /// <summary>자음의 음소값 없음(ㅇ)</summary>
+                NOCONSONANT, 
+                /// <summary>음소 자체가 없음</summary>
+                PHONEME_IS_NULL
+            }
 
-    /// <summary>
-        /// Last Consonant's type.
-        /// </summary>
-    public enum BatchimType{
-       
-        /// 
-        /// <summary>예사소리 받침</summary>
-        NORMAL_END, 
-        /// <summary>비음 받침</summary>
-        NASAL_END,
-        /// <summary>유음 받침</summary>
-        LIQUID_END, 
-        /// <summary>ㅇ받침</summary>
-        NG_END, 
-        /// <summary>ㅎ받침</summary>
-        H_END,
-        /// <summary>받침이 없음</summary>
-        NO_END,
-        /// <summary>음소 자체가 없음</summary>
-        PHONEME_IS_NULL
-    }
+            /// <summary>
+            /// Last Consonant's type.
+            /// </summary>
+            public enum BatchimType{ 
+                /// <summary>예사소리 받침</summary>
+                NORMAL_END, 
+                /// <summary>비음 받침</summary>
+                NASAL_END,
+                /// <summary>유음 받침</summary>
+                LIQUID_END, 
+                /// <summary>ㅇ받침</summary>
+                NG_END, 
+                /// <summary>ㅎ받침</summary>
+                H_END,
+                /// <summary>받침이 없음</summary>
+                NO_END,
+                /// <summary>음소 자체가 없음</summary>
+                PHONEME_IS_NULL
+            }
             public Hanguel hangeul = new Hanguel();
 
             /// <summary>
@@ -250,24 +244,31 @@ namespace OpenUtau.Plugin.Builtin {
             if (thisLastConsonant.Equals("l")) {
                 // ㄹ받침
                 cVCLength = totalDuration / 2;
-            } else if (thisLastConsonant.Equals("n")) {
+            } 
+            else if (thisLastConsonant.Equals("n")) {
                 // ㄴ받침
                 cVCLength = 170;
-            } else if (thisLastConsonant.Equals("ng")) {
+            } 
+            else if (thisLastConsonant.Equals("ng")) {
                 // ㅇ받침
                 cVCLength = 230;
-            } else if (thisLastConsonant.Equals("m")) {
+            } 
+            else if (thisLastConsonant.Equals("m")) {
                 // ㅁ받침
                 cVCLength = 280;
-            } else if (thisLastConsonant.Equals("k")) {
+            } 
+            else if (thisLastConsonant.Equals("k")) {
                 // ㄱ받침
                 cVCLength = totalDuration / 2;
-            } else if (thisLastConsonant.Equals("t")) {
+            } 
+            else if (thisLastConsonant.Equals("t")) {
                 // ㄷ받침
                 cVCLength = totalDuration / 2;
-            } else if (thisLastConsonant.Equals("p")) {
+            } 
+            else if (thisLastConsonant.Equals("p")) {
                 cVCLength = totalDuration / 2;
-            } else {
+            } 
+            else {
                 // 나머지
                 cVCLength = totalDuration / 3;
             }
@@ -280,9 +281,11 @@ namespace OpenUtau.Plugin.Builtin {
 
             if (((nextVowelHead.Equals("w")) && (thisVowelTail.Equals("eu"))) || ((nextVowelHead.Equals("w")) && (thisVowelTail.Equals("o"))) || ((nextVowelHead.Equals("w")) && (thisVowelTail.Equals("u")))) {
                 nextFirstConsonant = $"{(string)cbnnPhonemes[10]}"; // VC에 썼을 때 eu bw 대신 eu b를 만들기 위함
-            } else if (((nextVowelHead.Equals("y") && (thisVowelTail.Equals("i")))) || ((nextVowelHead.Equals("y")) && (thisVowelTail.Equals("eu")))) {
+            } 
+            else if (((nextVowelHead.Equals("y") && (thisVowelTail.Equals("i")))) || ((nextVowelHead.Equals("y")) && (thisVowelTail.Equals("eu")))) {
                 nextFirstConsonant = $"{(string)cbnnPhonemes[10]}"; // VC에 썼을 때 i by 대신 i b를 만들기 위함
-            } else {
+            } 
+            else {
                 nextFirstConsonant = $"{(string)cbnnPhonemes[10]}{(string)cbnnPhonemes[11]}"; // 나머지... ex) ny
             }
 
@@ -299,7 +302,6 @@ namespace OpenUtau.Plugin.Builtin {
                 if (!singer.TryGetMappedOto($"{CV}", note.tone, out UOto oto)) {
                     CV = $"{thisFirstConsonant}{thisVowelHead}{thisVowelTail}";
                 }
-
             }
             if (thisSuffix.Equals("")){
                 CV = findInOto(CV, note);
@@ -324,8 +326,6 @@ namespace OpenUtau.Plugin.Builtin {
                 // VV음소 없으면 (ex : a i) 대응하는 CV음소 사용 (ex:  i)
                 VV = CV;
             }
-
-
                 return cbnnPhonemes;
             }
 
@@ -399,6 +399,9 @@ namespace OpenUtau.Plugin.Builtin {
 
             }
 
+            /// <summary>
+            /// true when current Target has Batchim, otherwise false.
+            /// </summary>
             public bool thisHasBatchim(){
                 if (!thisLastConsonant.Equals("")){
                     return true;
@@ -408,6 +411,9 @@ namespace OpenUtau.Plugin.Builtin {
                 }
             }
 
+            /// <summary>
+            /// true when previous Target has Batchim, otherwise false.
+            /// </summary>
             public bool prevHasBatchim(){
                 if (!prevLastConsonant.Equals("")){
                     return true;
@@ -417,6 +423,9 @@ namespace OpenUtau.Plugin.Builtin {
                 }
             }
 
+            /// <summary>
+            /// true when next Target has Batchim, otherwise false.
+            /// </summary>
             public bool nextHasBatchim(){
                 if (!nextLastConsonant.Equals("")){
                     return true;
@@ -426,7 +435,7 @@ namespace OpenUtau.Plugin.Builtin {
                 }
             }
             /// <summary>
-            /// 초성이 예사소리인지 판단합니다.
+            /// true when current FirstConsonant is Normal(ㄱ, ㄷ, ㅂ, ㅅ, ㅈ), otherwise false.
             /// </summary>
             public bool thisFirstConsonantIsNormal(){
                 if (thisFirstConsonantType == ConsonantType.NORMAL){
@@ -438,7 +447,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 다음 소리가 예사소리인지 판단합니다.
+            /// true when next FirstConsonant is Normal(ㄱ, ㄷ, ㅂ, ㅅ, ㅈ), otherwise false.
             /// </summary>
             public bool nextFirstConsonantIsNormal(){
                 if (nextFirstConsonantType == ConsonantType.NORMAL){
@@ -450,7 +459,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 이전 소리가 예사소리인지 판단합니다.
+            /// true when previous FirstConsonant is Normal(ㄱ, ㄷ, ㅂ, ㅅ, ㅈ), otherwise false.
             /// </summary>
             public bool prevFirstConsonantIsNormal(){
                 if (prevFirstConsonantType == ConsonantType.NORMAL){
@@ -462,7 +471,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 초성이 된소리인지 판단합니다.
+            /// true when current FirstConsonant is Fortis(ㄲ, ㄸ, ㅃ, ㅉ), otherwise false.
             /// </summary>
             public bool thisFirstConsonantIsFortis(){
                 if (thisFirstConsonantType == ConsonantType.FORTIS){
@@ -474,7 +483,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 다음 소리가 된소리인지 판단합니다.
+            /// true when next FirstConsonant is Fortis(ㄲ, ㄸ, ㅃ, ㅉ), otherwise false.
             /// </summary>
             public bool nextFirstConsonantIsFortis(){
                 if (nextFirstConsonantType == ConsonantType.FORTIS){
@@ -486,7 +495,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 이전 소리가 된소리인지 판단합니다.
+            /// true when previous FirstConsonant is Fortis(ㄲ, ㄸ, ㅃ, ㅉ), otherwise false.
             /// </summary>
             public bool prevFirstConsonantIsFortis(){
                 if (prevFirstConsonantType == ConsonantType.FORTIS){
@@ -498,7 +507,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 초성이 거센소리인지 판단합니다.
+            /// true when current FirstConsonant is Aspirate(ㅋ, ㅌ, ㅍ, ㅊ), otherwise false.
             /// </summary>
             public bool thisFirstConsonantIsAspirate(){
                 if (thisFirstConsonantType == ConsonantType.ASPIRATE){
@@ -510,7 +519,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
             
             /// <summary>
-            /// 다음 초성이 거센소리인지 판단합니다.
+            /// true when next FirstConsonant is Aspirate(ㅋ, ㅌ, ㅍ, ㅊ), otherwise false.
             /// </summary>
             public bool nextFirstConsonantIsAspirate(){
                 if (nextFirstConsonantType == ConsonantType.ASPIRATE){
@@ -522,7 +531,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 이전 초성이 거센소리인지 판단합니다.
+            /// true when previous FirstConsonant is Aspirate(ㅋ, ㅌ, ㅍ, ㅊ), otherwise false.
             /// </summary>
             public bool prevFirstConsonantIsAspirate(){
                 if (prevFirstConsonantType == ConsonantType.ASPIRATE){
@@ -533,7 +542,7 @@ namespace OpenUtau.Plugin.Builtin {
                 }
             }
             /// <summary>
-            /// 초성이 마찰음인지 판단합니다.
+            /// true when current FirstConsonant is Fricative(ㅆ), otherwise false.
             /// </summary>
             public bool thisFirstConsonantIsFricative(){
                 if (thisFirstConsonantType == ConsonantType.FRICATIVE){
@@ -545,7 +554,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 다음 초성이 마찰음인지 판단합니다.
+            /// true when next FirstConsonant is Fricative(ㅆ), otherwise false.
             /// </summary>
             public bool nextFirstConsonantIsFricative(){
                 if (nextFirstConsonantType == ConsonantType.FRICATIVE){
@@ -557,7 +566,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 이전 초성이 마찰음인지 판단합니다.
+            /// true when previous FirstConsonant is Fricative(ㅆ), otherwise false.
             /// </summary>
             public bool prevFirstConsonantIsFricative(){
                 if (prevFirstConsonantType == ConsonantType.FRICATIVE){
@@ -569,7 +578,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 초성이 ㅇ인지 판단합니다.
+            /// true when current FirstConsonant is ㅇ, otherwise false.
             /// </summary>
             public bool thisFirstConsonantIsNone(){
                 if (thisFirstConsonantType == ConsonantType.NOCONSONANT){
@@ -581,7 +590,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 다음 초성이 ㅇ인지 판단합니다.
+            /// true when next FirstConsonant is ㅇ, otherwise false.
             /// </summary>
             public bool nextFirstConsonantIsNone(){
                 if (nextFirstConsonantType == ConsonantType.NOCONSONANT){
@@ -593,7 +602,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 이전초성이 ㅇ인지 판단합니다.
+            /// true when previous FirstConsonant is ㅇ, otherwise false.
             /// </summary>
             public bool prevFirstConsonantIsNone(){
                 if (prevFirstConsonantType == ConsonantType.NOCONSONANT){
@@ -605,7 +614,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 초성이 비음인지 판단합니다.
+            /// true when current FirstConsonant is Nasal(ㄴ, ㅇ, ㅁ), otherwise false.
             /// </summary>
             public bool thisFirstConsonantIsNasal(){
                 if (thisFirstConsonantType == ConsonantType.NASAL){
@@ -617,7 +626,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 다음 초성이 비음인지 판단합니다.
+            /// true when next FirstConsonant is Nasal(ㄴ, ㅇ, ㅁ), otherwise false.
             /// </summary>
             public bool nextFirstConsonantIsNasal(){
                 if (nextFirstConsonantType == ConsonantType.NASAL){
@@ -629,7 +638,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 이전 초성이 비음인지 판단합니다.
+            /// true when previous FirstConsonant is Nasal(ㄴ, ㅇ, ㅁ), otherwise false.
             /// </summary>
             public bool prevFirstConsonantIsNasal(){
                 if (prevFirstConsonantType == ConsonantType.NASAL){
@@ -641,7 +650,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 초성이 유음인지 판단합니다.
+            /// true when current FirstConsonant is Liquid(ㄹ), otherwise false.
             /// </summary>
             public bool thisFirstConsonantIsLiquid(){
                 if (thisFirstConsonantType == ConsonantType.LIQUID){
@@ -653,7 +662,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 다음 초성이 유음인지 판단합니다.
+            /// true when next FirstConsonant is Liquid(ㄹ), otherwise false.
             /// </summary>
             public bool nextFirstConsonantIsLiquid(){
                 if (nextFirstConsonantType == ConsonantType.LIQUID){
@@ -665,7 +674,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 이전 초성이 유음인지 판단합니다.
+            /// true when previous FirstConsonant is Liquid(ㄹ), otherwise false.
             /// </summary>
             public bool prevFirstConsonantIsLiquid(){
                 if (prevFirstConsonantType == ConsonantType.LIQUID){
@@ -677,7 +686,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 초성이 ㅎ인지 판단합니다.
+            /// true when current FirstConsonant is ㅎ, otherwise false.
             /// </summary>
             public bool thisFirstConsonantIsH(){
                 if (thisFirstConsonantType == ConsonantType.H){
@@ -689,7 +698,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 초성이 ㅎ인지 판단합니다.
+            /// true when next FirstConsonant is ㅎ, otherwise false.
             /// </summary>
             public bool nextFirstConsonantIsH(){
                 if (thisFirstConsonantType == ConsonantType.H){
@@ -701,7 +710,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 초성이 ㅎ인지 판단합니다.
+            /// true when previous FirstConsonant is ㅎ, otherwise false.
             /// </summary>
             public bool prevFirstConsonantIsH(){
                 if (prevFirstConsonantType == ConsonantType.H){
@@ -713,7 +722,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 현재 글자가 VV가 적용되는 순수 모음인지 판단합니다.
+            /// true when current Target is Plain vowel(ㅏ, ㅣ, ㅜ, ㅔ, ㅗ, ㅡ, ㅓ), otherwise false.
             /// </summary>
             public bool thisIsPlainVowel(){
                 if (thisFirstConsonantIsNone() && thisVowelHead.Equals("") ){
@@ -725,7 +734,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 다음 글자가 VV가 적용되는 순수 모음인지 판단합니다.
+            /// true when next Target is Plain vowel(ㅏ, ㅣ, ㅜ, ㅔ, ㅗ, ㅡ, ㅓ), otherwise false.
             /// </summary>
             public bool nextIsPlainVowel(){
                 if (nextFirstConsonantIsNone() && nextVowelHead.Equals("")){
@@ -737,7 +746,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 이전 글자가 VV가 적용되는 순수 모음인지 판단합니다.
+            /// true when previous Target is Plain vowel(ㅏ, ㅣ, ㅜ, ㅔ, ㅗ, ㅡ, ㅓ), otherwise false.
             /// </summary>
             public bool prevIsPlainVowel(){
                 if (prevFirstConsonantIsNone() && prevVowelHead.Equals("")){
@@ -749,7 +758,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 종성이 비음인지 판단합니다.
+            /// true when current LastConsonant is Nasal(ㄴ, ㅇ, ㅁ), otherwise false.
             /// </summary>
             public bool thisLastConsonantIsNasal(){
                 if (thisLastConsonantType == BatchimType.NASAL_END){
@@ -761,7 +770,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 다음 종성이 비음인지 판단합니다.
+            /// true when next LastConsonant is Nasal(ㄴ, ㅇ, ㅁ), otherwise false.
             /// </summary>
             public bool nextLastConsonantIsNasal(){
                 if (nextLastConsonantType == BatchimType.NASAL_END){
@@ -773,7 +782,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 이전 종성이 비음인지 판단합니다.
+            /// true when previous LastConsonant is Nasal(ㄴ, ㅇ, ㅁ), otherwise false.
             /// </summary>
             public bool prevLastConsonantIsNasal(){
                 if (prevLastConsonantType == BatchimType.NASAL_END){
@@ -785,7 +794,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 종성이 유음인지 판단합니다.
+            /// true when current LastConsonant is Liquid(ㄹ), otherwise false.
             /// </summary>
             public bool thisLastConsonantIsLiquid(){
                 if (thisLastConsonantType == BatchimType.LIQUID_END){
@@ -797,7 +806,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 다음 종성이 비음인지 판단합니다.
+            /// true when next LastConsonant is Liquid(ㄹ), otherwise false.
             /// </summary>
             public bool nextLastConsonantIsLiquid(){
                 if (nextLastConsonantType == BatchimType.LIQUID_END){
@@ -809,7 +818,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             /// <summary>
-            /// 이전 종성이 유음인지 판단합니다.
+            /// true when previous LastConsonant is Liquid.(ㄹ), otherwise false.
             /// </summary>
             public bool prevLastConsonantIsLiquid(){
                 if (prevLastConsonantType == BatchimType.LIQUID_END){
@@ -909,7 +918,7 @@ namespace OpenUtau.Plugin.Builtin {
                             return generateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
                         } 
                         else {// 다음 음소가 나머지임
-                            return generateResult(CBNN.frontCV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
+                            return generateResult(CBNN.frontCV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 8);
                         }
                     } 
                     else {// 앞이웃만 없고 받침 있음 - 나머지 / [꺅]꺄
@@ -989,28 +998,28 @@ namespace OpenUtau.Plugin.Builtin {
                         } 
                         else {// 다음 음소가 ㄴㅇㄹㅁ 제외 나머지임
                             if ((! CBNN.prevHasBatchim()) && CBNN.thisIsPlainVowel()) {// 앞에 받침 없는 모음 / 냐[앙]꺅
-                                return generateResult(CBNN.VV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
+                                return generateResult(CBNN.VV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 8);
                             } 
                             else {// 앞에 받침 있고 받침 있는 CVC / 냥[냥]꺅
                                 if (CBNN.prevHasBatchim() && (CBNN.thisFirstConsonantIsAspirate() || CBNN.thisFirstConsonantIsFortis() || CBNN.thisFirstConsonantIsFricative())) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
-                                    return generateResult(CBNN.frontCV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
+                                    return generateResult(CBNN.frontCV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 8);
                                 } 
                                 else {// 나머지 음소 
-                                    return generateResult(CBNN.CV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
+                                    return generateResult(CBNN.CV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 8);
                                 }
                             }
                         }
                     } 
                     else {// 둘다 이웃 있고 받침 있음 - 나머지 / 꺅[꺅]꺄
                         if ((! CBNN.prevHasBatchim()) && CBNN.thisIsPlainVowel()) {// 앞에 받침 없는 모음 / 냐[악]꺅
-                            return generateResult(CBNN.VV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
+                            return generateResult(CBNN.VV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 8);
                         } 
                         else {// 앞에 받침이 온 CVC 음소(받침 있음) / 냥[악]꺅  냥[먁]꺅
                             if (CBNN.prevHasBatchim() && (CBNN.thisFirstConsonantIsAspirate() || CBNN.thisFirstConsonantIsFortis() || CBNN.thisFirstConsonantIsFricative())) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
-                                return generateResult(CBNN.frontCV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
+                                return generateResult(CBNN.frontCV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 8);
                             } 
                             else {// 나머지
-                                return generateResult(CBNN.CV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
+                                return generateResult(CBNN.CV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 8);
                             }
                         }
                     }
