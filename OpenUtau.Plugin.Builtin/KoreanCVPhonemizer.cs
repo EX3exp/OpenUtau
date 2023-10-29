@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using OpenUtau.Api;
 using OpenUtau.Core;
@@ -9,7 +8,6 @@ using OpenUtau.Core.Ustx;
 using OpenUtau.Core.Util;
 
 
-// TODO: refactoring code
 namespace OpenUtau.Plugin.Builtin {
     /// Phonemizer for 'KOR CV' ///
     [Phonemizer("Korean CV Phonemizer", "KO CV", "EX3", language: "KO")]
