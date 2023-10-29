@@ -761,7 +761,7 @@ namespace OpenUtau.Plugin.Builtin {
             /// true when current LastConsonant is Nasal(ㄴ, ㅇ, ㅁ), otherwise false.
             /// </summary>
             public bool thisLastConsonantIsNasal(){
-                if (thisLastConsonantType == BatchimType.NASAL_END){
+                if (thisLastConsonantType == BatchimType.NASAL_END || thisLastConsonantType == BatchimType.NG_END){
                     return true;
                 }
                 else{
@@ -773,7 +773,7 @@ namespace OpenUtau.Plugin.Builtin {
             /// true when next LastConsonant is Nasal(ㄴ, ㅇ, ㅁ), otherwise false.
             /// </summary>
             public bool nextLastConsonantIsNasal(){
-                if (nextLastConsonantType == BatchimType.NASAL_END){
+                if (nextLastConsonantType == BatchimType.NASAL_END || nextLastConsonantType == BatchimType.NG_END){
                     return true;
                 }
                 else{
@@ -785,7 +785,7 @@ namespace OpenUtau.Plugin.Builtin {
             /// true when previous LastConsonant is Nasal(ㄴ, ㅇ, ㅁ), otherwise false.
             /// </summary>
             public bool prevLastConsonantIsNasal(){
-                if (prevLastConsonantType == BatchimType.NASAL_END){
+                if (prevLastConsonantType == BatchimType.NASAL_END || prevLastConsonantType == BatchimType.NG_END){
                     return true;
                 }
                 else{
@@ -828,6 +828,69 @@ namespace OpenUtau.Plugin.Builtin {
                     return false;
                 }
             }
+
+            /// <summary>
+            /// true when previous FirstConsonant is Aspirate or Fortis or Fricative (ㅋ, ㅌ, ㅍ, ㅊ, ㄲ, ㄸ, ㅃ, ㅆ, ㅉ), otherwise false.
+            /// </summary>
+            public bool prevFirstConsonantNeedsPause(){
+                return (prevFirstConsonantIsAspirate() || prevFirstConsonantIsFortis() || prevFirstConsonantIsFricative());
+            }
+
+            /// <summary>
+            /// true when current FirstConsonant is Aspirate or Fortis or Fricative (ㅋ, ㅌ, ㅍ, ㅊ, ㄲ, ㄸ, ㅃ, ㅆ, ㅉ), otherwise false.
+            /// </summary>
+            public bool thisFirstConsonantNeedsPause(){
+                return (thisFirstConsonantIsAspirate() || thisFirstConsonantIsFortis() || thisFirstConsonantIsFricative());
+            }
+
+            /// <summary>
+            /// true when next FirstConsonant is Aspirate or Fortis or Fricative (ㅋ, ㅌ, ㅍ, ㅊ, ㄲ, ㄸ, ㅃ, ㅆ, ㅉ), otherwise false.
+            /// </summary>
+            public bool nextFirstConsonantNeedsPause(){
+                return (nextFirstConsonantIsAspirate() || nextFirstConsonantIsFortis() || nextFirstConsonantIsFricative());
+            }
+
+            /// <summary>
+            /// true when current LastConsonant is Nasal or Liquid (ㄴ, ㅇ, ㅁ, ㄹ), otherwise false.
+            /// </summary>
+            public bool thisLastConsonantIsNasalOrLiquid(){
+                return (thisLastConsonantIsNasal() || thisLastConsonantIsLiquid());
+            }
+
+            /// <summary>
+            /// true when next LastConsonant is Nasal or Liquid (ㄴ, ㅇ, ㅁ, ㄹ), otherwise false.
+            /// </summary>
+            public bool nextLastConsonantIsNasalOrLiquid(){
+                return (nextLastConsonantIsNasal() || nextLastConsonantIsLiquid());
+            }
+
+            /// <summary>
+            /// true when previous LastConsonant is Nasal or Liquid (ㄴ, ㅇ, ㅁ, ㄹ), otherwise false.
+            /// </summary>
+            public bool prevLastConsonantIsNasalOrLiquid(){
+                return (prevLastConsonantIsNasal() || prevLastConsonantIsLiquid());
+            }
+
+            /// <summary>
+            /// true when current Target needs VV for Vowel Phoneme(Example: a i, u eo...), otherwise false.
+            /// </summary>
+            public bool thisVowelNeedsVV(){
+                return ((! prevHasBatchim()) && thisIsPlainVowel());
+            }
+
+            /// <summary>
+            /// true when current Target needs CV for Vowel Phoneme(Example: a, ya...), otherwise false.
+            /// </summary>
+            public bool thisVowelNeedsCV(){
+                return ((thisFirstConsonantIsNone() && prevHasBatchim()) || (prevHasBatchim() && thisIsPlainVowel()));
+            }
+
+            /// <summary>
+            /// true when current Target needs frontCV for CV Phoneme(Example: - ka), otherwise false.
+            /// </summary>
+            public bool thisNeedsFrontCV(){
+                return (prevHasBatchim() && thisFirstConsonantNeedsPause());
+            }
         }
 
         public override Result convertPhonemes(Note[] notes, Note? prev, Note? next, Note? prevNeighbour, Note? nextNeighbour, Note[] prevNeighbours) {
@@ -862,35 +925,35 @@ namespace OpenUtau.Plugin.Builtin {
                     return generateResult(CBNN.frontCV, CBNN.endSoundVowel, totalDuration, vcLengthShort);
                 } 
                 else { // batchim
-                    return generateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength);
+                    return generateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 6);
                 }
             } 
 
             else if ((prevNeighbour != null) && (nextNeighbour == null)) { // Prev neighbour only / 냥[냥]
                 if (! CBNN.thisHasBatchim()) { // No Batchim / 냐[냐]
-                    if (CBNN.thisFirstConsonantIsNone() && (! CBNN.prevHasBatchim()) && (! CBNN.thisHasBatchim()) && CBNN.thisIsPlainVowel()) {// when comes Vowel and there's no previous batchim / 냐[아]
+                    if (CBNN.thisVowelNeedsVV()) {// when comes Vowel and there's no previous batchim / 냐[아]
                         return generateResult(CBNN.VV, CBNN.endSoundVowel, totalDuration, CBNN.vcLengthShort, 8); 
                     } 
-                    else if (CBNN.thisFirstConsonantIsNone() && CBNN.prevHasBatchim()) {// when came Vowel behind Batchim / 냥[아]
+                    else if (CBNN.thisVowelNeedsCV()) {// when came Vowel behind Batchim / 냥[아]
                         return generateResult(CBNN.CV, CBNN.endSoundVowel, totalDuration, CBNN.vcLengthShort, 8);
                     } 
                     else {// Not vowel / 냐[냐]
-                        if (CBNN.prevHasBatchim() && (CBNN.thisFirstConsonantIsAspirate() || CBNN.thisFirstConsonantIsFortis() || CBNN.thisFirstConsonantIsFricative())) {// - CV
+                        if (CBNN.thisNeedsFrontCV()) {// - CV
                             return generateResult(CBNN.frontCV, CBNN.endSoundVowel, totalDuration, CBNN.vcLengthShort, 8);
                         } else {// -CV 
                             return generateResult(CBNN.CV, CBNN.endSoundVowel, totalDuration, CBNN.vcLengthShort, 8);
                         }
                     }
                 } 
-                else if (CBNN.thisLastConsonantIsNasal() || CBNN.thisLastConsonantIsLiquid()) {// Batchim - ㄴㄹㅇㅁ  / 냐[냥]
-                    if ((!CBNN.prevHasBatchim()) && CBNN.thisIsPlainVowel()) {// when comes Vowel and there's no previous batchim / 냐[앙]
-                        return generateResult(CBNN.VV, CBNN.cVC, totalDuration, CBNN.vcLength, 3);
+                else if (CBNN.thisLastConsonantIsNasalOrLiquid()) {// Batchim - ㄴㄹㅇㅁ  / 냐[냥]
+                    if (CBNN.thisVowelNeedsVV()) {// when comes Vowel and there's no previous batchim / 냐[앙]
+                        return generateResult(CBNN.VV, CBNN.cVC, totalDuration, CBNN.vcLength, 6);
                     } 
-                    else if (CBNN.prevHasBatchim() && CBNN.thisIsPlainVowel()) {// when came Vowel behind Batchim / 냥[앙]
-                        return generateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.vcLength, 3);
+                    else if (CBNN.thisVowelNeedsCV()) {// when came Vowel behind Batchim / 냥[앙]
+                        return generateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.vcLength, 6);
                     } 
                     else {// batchim / 냐[냑]
-                        if (CBNN.prevHasBatchim() && (CBNN.thisFirstConsonantIsAspirate() || CBNN.thisFirstConsonantIsFortis() || CBNN.thisFirstConsonantIsFricative())) {// - CV
+                        if (CBNN.thisNeedsFrontCV()) {// - CV
                             return generateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.vcLength, 3);
                         } 
                         else {// 이외 음소는 - CV로 이음
@@ -899,26 +962,31 @@ namespace OpenUtau.Plugin.Builtin {
                     }
                 } 
                 else {// 유음받침 아니고 비음받침도 아님
-                    return generateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.cVCLength, 3);
+                    return generateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.cVCLength, 6);
                 }
             } 
 
             else if ((prevNeighbour == null) && (nextNeighbour != null)) {// next lyric is Hangeul
                 if (hanguel.isHangeul(nextNeighbour?.lyric)) {// Next neighbour only  / null [아] 아
                     if (!CBNN.thisHasBatchim()) { // No batchim / null [냐] 냥
-                        if (CBNN.nextIsPlainVowel() || CBNN.VC == null) {// there should be No VC phoneme for next VV phoneme
-                            return generateResult(CBNN.frontCV);
-                        } 
-                        else{
+                        if (CBNN.VC != null) {// there should be No VC phoneme for next VV phoneme
                             return generateResult(CBNN.frontCV, CBNN.VC, totalDuration, CBNN.vcLength, 3);
                         } 
-                    } 
-                    else if (CBNN.thisLastConsonantIsNasal() || CBNN.thisLastConsonantIsLiquid()) {// Batchim - ㄴㄹㅇㅁ / null [냥]냐
-                        if (CBNN.nextFirstConsonantIsNormal() || CBNN.nextFirstConsonantIsNasal() || CBNN.nextFirstConsonantIsLiquid() || CBNN.nextFirstConsonantIsNone()) {
-                            return generateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
+                        else{
+                            return generateResult(CBNN.frontCV);
                         } 
-                        else {// 다음 음소가 나머지임
-                            return generateResult(CBNN.frontCV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 8);
+                    } 
+                    else if (CBNN.thisLastConsonantIsNasalOrLiquid()) {// Batchim - ㄴㄹㅇㅁ / null [냥]냐
+                        if (CBNN.nextFirstConsonantNeedsPause()) {
+                            return generateResult(CBNN.frontCV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
+                        } 
+                        else {
+                            if (CBNN.nextFirstConsonantIsNone()){
+                                return generateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 6);
+                            }
+                            else{
+                                return generateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
+                            } 
                         }
                     } 
                     else {// 앞이웃만 없고 받침 있음 - 나머지 / [꺅]꺄
@@ -938,28 +1006,33 @@ namespace OpenUtau.Plugin.Builtin {
             else if ((prevNeighbour != null) && (nextNeighbour != null)) {// 둘다 이웃 있음
                 if (hanguel.isHangeul(nextNeighbour?.lyric)) {// 뒤의 이웃이 한국어임
                     if (! CBNN.thisHasBatchim()) { // 둘다 이웃 있고 받침 없음 / 냥[냐]냥
-                        if ((! CBNN.prevHasBatchim()) && CBNN.thisIsPlainVowel() && CBNN.nextFirstConsonantIsNone()) {// 앞에 받침 없는 모음 / 뒤에 모음 옴 / 냐[아]아
-                            return generateResult(CBNN.VV);
-                        } 
-                        else if ((! CBNN.prevHasBatchim()) && (! CBNN.nextFirstConsonantIsNone()) && CBNN.thisIsPlainVowel()) {// 앞에 받침 없는 모음 / 뒤에 자음 옴 / 냐[아]냐
+                        if (CBNN.thisVowelNeedsVV()) {
                             if (CBNN.VC != null) {
                                 return generateResult(CBNN.VV, CBNN.VC, totalDuration, CBNN.vcLength);
+                            }
+                            else{
+                                return generateResult(CBNN.VV);
+                            }
+                        } 
+                        else if (CBNN.thisVowelNeedsCV()) {
+                            if (CBNN.VC != null) {
+                                return generateResult(CBNN.CV, CBNN.VC, totalDuration, CBNN.vcLength);
                             } 
                             else {// No VC
-                                return generateResult(CBNN.VV);
+                                return generateResult(CBNN.CV);
                             } 
                         }
-                        else {// 앞에 받침 있고 뒤에 모음 옴 / 냐[냐]아  냥[아]아
+                        else {
                             if (CBNN.nextIsPlainVowel()) {
-                                if (CBNN.prevHasBatchim() && (CBNN.thisFirstConsonantIsAspirate() || CBNN.thisFirstConsonantIsFortis() || CBNN.thisFirstConsonantIsFricative())) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
+                                if (CBNN.thisNeedsFrontCV()) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
                                     return generateResult(CBNN.frontCV);
                                 } 
                                 else {
                                     return generateResult(CBNN.CV);
                                 }
                             } 
-                            else {// 앞에 받침 있고 뒤에 모음 안옴
-                                if (CBNN.prevHasBatchim() && (CBNN.thisFirstConsonantIsAspirate() || CBNN.thisFirstConsonantIsFortis() || CBNN.thisFirstConsonantIsFricative())) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
+                            else {
+                                if (CBNN.thisNeedsFrontCV()) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
                                     if (CBNN.VC != null) {
                                         return generateResult(CBNN.frontCV, CBNN.VC, totalDuration, CBNN.vcLengthShort);
                                     } 
@@ -978,58 +1051,60 @@ namespace OpenUtau.Plugin.Builtin {
                             }
                         }
                     } 
-                    else if (CBNN.thisHasBatchim() && (CBNN.nextFirstConsonantIsFricative() || CBNN.thisLastConsonantIsNasal() || CBNN.thisLastConsonantIsLiquid() || CBNN.nextFirstConsonantIsNone())) {// 둘다 이웃 있고 받침 있음 - ㄴㄹㅇㅁ + 뒤에 오는 음소가 ㅆ인 아무런 받침 / 냐[냥]냐
+                    else if (CBNN.thisHasBatchim() && (CBNN.nextFirstConsonantIsFricative() || CBNN.thisLastConsonantIsNasalOrLiquid() || CBNN.nextFirstConsonantIsNone())) {// 둘다 이웃 있고 받침 있음 - ㄴㄹㅇㅁ + 뒤에 오는 음소가 ㅆ인 아무런 받침 / 냐[냥]냐
                         if (CBNN.nextFirstConsonantIsNormal() || CBNN.nextFirstConsonantIsNasal() || CBNN.nextFirstConsonantIsNone() || CBNN.nextFirstConsonantIsLiquid()) {
                             // 다음 음소가 ㄱㄷㅂㅅㅈㄴㅇㄹㅇ 임
-                            if ((! CBNN.prevHasBatchim()) && CBNN.thisIsPlainVowel()) {
-                                // 앞에 받침 없고 받침 있는 모음 / 냐[앙]냐
+                            if (CBNN.thisVowelNeedsVV()) {
                                 return generateResult(CBNN.VV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
                             } 
-                            else {
-                                // 앞에 받침 있고 받침 오는 CV / 냥[냥]냐 
-                                if (CBNN.prevHasBatchim() && (CBNN.thisFirstConsonantIsAspirate() || CBNN.thisFirstConsonantIsFortis() || CBNN.thisFirstConsonantIsFricative())) {
-                                    // ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함
+                            else {// 앞에 받침 있고 받침 오는 CV / 냥[냥]냐 
+                                if (CBNN.thisNeedsFrontCV()) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함
                                     return generateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
                                 } 
                                 else {
-                                    return generateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
+                                    if (CBNN.nextFirstConsonantIsNone()){
+                                        return generateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.cVCLength, 6);
+                                    }
+                                    else{
+                                        return generateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
+                                    } 
                                 }
                             }
                         } 
                         else {// 다음 음소가 ㄴㅇㄹㅁ 제외 나머지임
-                            if ((! CBNN.prevHasBatchim()) && CBNN.thisIsPlainVowel()) {// 앞에 받침 없는 모음 / 냐[앙]꺅
-                                return generateResult(CBNN.VV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 8);
+                            if (CBNN.thisVowelNeedsVV()) {// 앞에 받침 없는 모음 / 냐[앙]꺅
+                                return generateResult(CBNN.VV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
                             } 
                             else {// 앞에 받침 있고 받침 있는 CVC / 냥[냥]꺅
-                                if (CBNN.prevHasBatchim() && (CBNN.thisFirstConsonantIsAspirate() || CBNN.thisFirstConsonantIsFortis() || CBNN.thisFirstConsonantIsFricative())) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
-                                    return generateResult(CBNN.frontCV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 8);
+                                if (CBNN.thisNeedsFrontCV()) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
+                                    return generateResult(CBNN.frontCV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
                                 } 
-                                else {// 나머지 음소 
-                                    return generateResult(CBNN.CV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 8);
+                                else {
+                                    return generateResult(CBNN.CV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
                                 }
                             }
                         }
                     } 
                     else {// 둘다 이웃 있고 받침 있음 - 나머지 / 꺅[꺅]꺄
-                        if ((! CBNN.prevHasBatchim()) && CBNN.thisIsPlainVowel()) {// 앞에 받침 없는 모음 / 냐[악]꺅
-                            return generateResult(CBNN.VV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 8);
+                        if (CBNN.thisVowelNeedsVV()) {// 앞에 받침 없는 모음 / 냐[악]꺅
+                            return generateResult(CBNN.VV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
                         } 
                         else {// 앞에 받침이 온 CVC 음소(받침 있음) / 냥[악]꺅  냥[먁]꺅
-                            if (CBNN.prevHasBatchim() && (CBNN.thisFirstConsonantIsAspirate() || CBNN.thisFirstConsonantIsFortis() || CBNN.thisFirstConsonantIsFricative())) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
-                                return generateResult(CBNN.frontCV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 8);
+                            if (CBNN.thisNeedsFrontCV()) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
+                                return generateResult(CBNN.frontCV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
                             } 
                             else {// 나머지
-                                return generateResult(CBNN.CV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 8);
+                                return generateResult(CBNN.CV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
                             }
                         }
                     }
                 } 
                 else if ((bool)(nextNeighbour?.lyric.Equals("-")) || (bool)(nextNeighbour?.lyric.Equals("R"))) {// 둘다 이웃 있고 뒤에 -가 옴
                     if (! CBNN.thisHasBatchim()) { // 둘다 이웃 있고 받침 없음 / 냥[냐]냥
-                        if ((! CBNN.prevHasBatchim()) && CBNN.thisIsPlainVowel() && CBNN.nextFirstConsonantIsNone()) {// 앞에 받침 없는 모음 / 냐[아]냐
+                        if (CBNN.thisVowelNeedsVV()) {// 앞에 받침 없는 모음 / 냐[아]냐
                             return generateResult(CBNN.VV);
                         } 
-                        else if (CBNN.prevHasBatchim() && (CBNN.thisFirstConsonantIsAspirate() || CBNN.thisFirstConsonantIsFortis() || CBNN.thisFirstConsonantIsFricative())){
+                        else if (CBNN.thisNeedsFrontCV()){
                             return generateResult(CBNN.frontCV);
                         }
                         else {// 앞에 받침 있는 모음 + 모음 아님 / 냐[냐]냐  냥[아]냐
@@ -1038,27 +1113,27 @@ namespace OpenUtau.Plugin.Builtin {
                     } 
                     else {
                         if (CBNN.nextFirstConsonantIsLiquid() || CBNN.nextFirstConsonantIsNasal() || CBNN.nextFirstConsonantIsNone()) {// 다음 음소가 ㄴㅇㄹㅇ 임
-                            if ((! CBNN.prevHasBatchim()) && CBNN.thisIsPlainVowel()) {// 앞에 받침 없는 모음 / 냐[악]꺅
+                            if (CBNN.thisVowelNeedsVV()) {// 앞에 받침 없는 모음 / 냐[악]꺅
                             return generateResult(CBNN.VV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
                         } 
                         else {// 앞에 받침이 온 CVC 음소(받침 있음) / 냥[악]꺅  냥[먁]꺅
-                            if (CBNN.prevHasBatchim() && (CBNN.thisFirstConsonantIsAspirate() || CBNN.thisFirstConsonantIsFortis() || CBNN.thisFirstConsonantIsFricative())) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
+                            if (CBNN.thisNeedsFrontCV()) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
                                 return generateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
                             } 
-                            else {// 나머지
+                            else {
                                 return generateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
                             }
                         }
                     } 
                         else {// 다음 음소가 ㄴㅇㄹㅁ 제외 나머지임
-                            if ((! CBNN.prevHasBatchim()) && CBNN.thisIsPlainVowel()) {// 앞에 받침 없는 모음 / 냐[앙]꺅
+                            if (CBNN.thisVowelNeedsVV()) {// 앞에 받침 없는 모음 / 냐[앙]꺅
                                 return generateResult(CBNN.VV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
                             } 
                             else {// 앞에 받침 있고 받침 있는 CVC / 냥[냥]꺅
-                                if (CBNN.prevHasBatchim() && (CBNN.thisFirstConsonantIsAspirate() || CBNN.thisFirstConsonantIsFortis() || CBNN.thisFirstConsonantIsFricative())) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
+                                if (CBNN.thisNeedsFrontCV()) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
                                     return generateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
                                 } 
-                                else {// 나머지 음소 
+                                else {
                                     return generateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
                                 }
                             }
@@ -1069,7 +1144,7 @@ namespace OpenUtau.Plugin.Builtin {
                     if (! CBNN.thisHasBatchim()) { // 둘다 이웃 있고 받침 없음 / 냥[냐]-
                         return generateResult(CBNN.CV);
                     } 
-                    else {// 둘다 이웃 있고 받침 있음 - 나머지 / 꺅[꺅]-
+                    else {
                         return generateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.cVCLength, 3);
                     }
                 }

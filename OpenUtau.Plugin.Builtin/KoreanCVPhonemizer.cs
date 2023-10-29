@@ -784,7 +784,7 @@ namespace OpenUtau.Plugin.Builtin {
             /// true when current LastConsonant is Nasal(ㄴ, ㅇ, ㅁ), otherwise false.
             /// </summary>
             public bool thisLastConsonantIsNasal(){
-                if (thisLastConsonantType == BatchimType.NASAL_END){
+                if (thisLastConsonantType == BatchimType.NASAL_END || thisLastConsonantType == BatchimType.NG_END){
                     return true;
                 }
                 else{
@@ -796,7 +796,7 @@ namespace OpenUtau.Plugin.Builtin {
             /// true when next LastConsonant is Nasal(ㄴ, ㅇ, ㅁ), otherwise false.
             /// </summary>
             public bool nextLastConsonantIsNasal(){
-                if (nextLastConsonantType == BatchimType.NASAL_END){
+                if (nextLastConsonantType == BatchimType.NASAL_END || nextLastConsonantType == BatchimType.NG_END){
                     return true;
                 }
                 else{
@@ -808,7 +808,7 @@ namespace OpenUtau.Plugin.Builtin {
             /// true when previous LastConsonant is Nasal(ㄴ, ㅇ, ㅁ), otherwise false.
             /// </summary>
             public bool prevLastConsonantIsNasal(){
-                if (prevLastConsonantType == BatchimType.NASAL_END){
+                if (prevLastConsonantType == BatchimType.NASAL_END || prevLastConsonantType == BatchimType.NG_END){
                     return true;
                 }
                 else{
@@ -851,6 +851,69 @@ namespace OpenUtau.Plugin.Builtin {
                     return false;
                 }
             }
+
+            /// <summary>
+            /// true when previous FirstConsonant is Aspirate or Fortis or Fricative (ㅋ, ㅌ, ㅍ, ㅊ, ㄲ, ㄸ, ㅃ, ㅆ, ㅉ), otherwise false.
+            /// </summary>
+            public bool prevFirstConsonantNeedsPause(){
+                return (prevFirstConsonantIsAspirate() || prevFirstConsonantIsFortis() || prevFirstConsonantIsFricative());
+            }
+
+            /// <summary>
+            /// true when current FirstConsonant is Aspirate or Fortis or Fricative (ㅋ, ㅌ, ㅍ, ㅊ, ㄲ, ㄸ, ㅃ, ㅆ, ㅉ), otherwise false.
+            /// </summary>
+            public bool thisFirstConsonantNeedsPause(){
+                return (thisFirstConsonantIsAspirate() || thisFirstConsonantIsFortis() || thisFirstConsonantIsFricative());
+            }
+
+            /// <summary>
+            /// true when next FirstConsonant is Aspirate or Fortis or Fricative (ㅋ, ㅌ, ㅍ, ㅊ, ㄲ, ㄸ, ㅃ, ㅆ, ㅉ), otherwise false.
+            /// </summary>
+            public bool nextFirstConsonantNeedsPause(){
+                return (nextFirstConsonantIsAspirate() || nextFirstConsonantIsFortis() || nextFirstConsonantIsFricative());
+            }
+
+            /// <summary>
+            /// true when current LastConsonant is Nasal or Liquid (ㄴ, ㅇ, ㅁ, ㄹ), otherwise false.
+            /// </summary>
+            public bool thisLastConsonantIsNasalOrLiquid(){
+                return (thisLastConsonantIsNasal() || thisLastConsonantIsLiquid());
+            }
+
+            /// <summary>
+            /// true when next LastConsonant is Nasal or Liquid (ㄴ, ㅇ, ㅁ, ㄹ), otherwise false.
+            /// </summary>
+            public bool nextLastConsonantIsNasalOrLiquid(){
+                return (nextLastConsonantIsNasal() || nextLastConsonantIsLiquid());
+            }
+
+            /// <summary>
+            /// true when previous LastConsonant is Nasal or Liquid (ㄴ, ㅇ, ㅁ, ㄹ), otherwise false.
+            /// </summary>
+            public bool prevLastConsonantIsNasalOrLiquid(){
+                return (prevLastConsonantIsNasal() || prevLastConsonantIsLiquid());
+            }
+
+            /// <summary>
+            /// true when current Target needs VV for Vowel Phoneme(Example: a i, u eo...), otherwise false.
+            /// </summary>
+            public bool thisVowelNeedsVV(){
+                return ((! prevHasBatchim()) && thisIsPlainVowel());
+            }
+
+            /// <summary>
+            /// true when current Target needs CV for Vowel Phoneme(Example: a, ya...), otherwise false.
+            /// </summary>
+            public bool thisVowelNeedsCV(){
+                return ((thisFirstConsonantIsNone() && prevHasBatchim()) || (prevHasBatchim() && thisIsPlainVowel()));
+            }
+
+            /// <summary>
+            /// true when current Target needs frontCV for CV Phoneme(Example: - ka), otherwise false.
+            /// </summary>
+            public bool thisNeedsFrontCV(){
+                return (prevHasBatchim() && thisFirstConsonantNeedsPause());
+            }
         }
 
         public override Result convertPhonemes(Note[] notes, Note? prev, Note? next, Note? prevNeighbour, Note? nextNeighbour, Note[] prevNeighbours) {
@@ -871,8 +934,15 @@ namespace OpenUtau.Plugin.Builtin {
             Hanguel hanguel = new Hanguel();
             KOCV cv = new KOCV(singer, thisNote, totalDuration, vcLength, vcLengthShort);
 
-            cvPhonemes = cv.convertForCV(prevNote, thisNote, nextNote, 
-                            new bool[] {isUsingShi, isUsing_aX, isUsing_i, isRentan});
+            try{
+                // change lyric to CV phonemes, with phoneme variation.
+                cvPhonemes = cv.convertForCV(prevNote, thisNote, nextNote, 
+                        new bool[] {isUsingShi, isUsing_aX, isUsing_i, isRentan});
+            
+            }
+            catch {
+                return generateResult(lyric);
+            }
             
 
             // return phonemes
@@ -881,14 +951,14 @@ namespace OpenUtau.Plugin.Builtin {
                     return generateResult(cv.frontCV, cv.endSoundVowel, totalDuration, vcLengthShort, 8);
                 } 
                 else { // batchim
-                    return generateResult(cv.frontCV, cv.cVC, totalDuration, cv.cVCLength);
+                    return generateResult(cv.frontCV, cv.cVC, totalDuration, cv.cVCLength, 8);
                 }
             } 
             
             else if ((prevNeighbour != null) && (nextNeighbour == null)) {
                 // 앞에 이웃 있고 뒤에 이웃 없음 / 냥[냥]
                 if (! cv.thisHasBatchim()) { // 둘다 이웃 있고 받침 없음 / 냥[냐]냥
-                        if (cv.prevHasBatchim() && (cv.thisFirstConsonantIsAspirate() || cv.nextFirstConsonantIsAspirate() || cv.nextFirstConsonantIsFortis() || cv.nextFirstConsonantIsFricative())) {
+                        if (cv.thisNeedsFrontCV()) {
                             return generateResult(cv.frontCV);
                             }
                         else{
@@ -896,11 +966,11 @@ namespace OpenUtau.Plugin.Builtin {
                         }   
                     }
                 else{
-                    if (cv.prevHasBatchim() && (cv.thisFirstConsonantIsAspirate() || cv.nextFirstConsonantIsAspirate() || cv.nextFirstConsonantIsFortis() || cv.nextFirstConsonantIsFricative())) {
-                        return generateResult(cv.frontCV, cv.cVC, totalDuration, cv.vcLength, 3);
+                    if (cv.thisNeedsFrontCV()) {
+                        return generateResult(cv.frontCV, cv.cVC, totalDuration, cv.vcLength, 8);
                     }
                     else{
-                        return generateResult(cv.CV, cv.cVC, totalDuration, cv.vcLength, 3);
+                        return generateResult(cv.CV, cv.cVC, totalDuration, cv.vcLength, 8);
                     }
                 }
             }   
@@ -908,7 +978,7 @@ namespace OpenUtau.Plugin.Builtin {
             else if ((prevNeighbour == null) && (nextNeighbour != null)) {
                 if (hanguel.isHangeul(nextNeighbour?.lyric)) {// 뒤 글자가 한글임
                     if (! cv.thisHasBatchim()) { // 앞이웃만 없고 받침 없음 / [냐]냥
-                        if (cv.nextFirstConsonantIsAspirate() || cv.nextFirstConsonantIsFortis() || cv.nextFirstConsonantIsFricative()) {// 뒤 음소가 파열음 혹은 된소리일 때엔 VC로 공백을 준다 
+                        if (cv.nextFirstConsonantNeedsPause()) {// 뒤 음소가 파열음 혹은 된소리일 때엔 VC로 공백을 준다 
                             return generateResult(cv.frontCV, "", totalDuration, vcLength);
                         } 
                         else {// 뒤 음소가 파열음이나 된소리가 아니면 그냥 이어줌
@@ -916,7 +986,7 @@ namespace OpenUtau.Plugin.Builtin {
                         }
                     } 
                     else {
-                        if (cv.nextFirstConsonantIsAspirate() || cv.nextFirstConsonantIsFortis() || cv.nextFirstConsonantIsFricative()) {// 뒤 음소가 파열음 혹은 된소리일 때엔 VC로 공백을 준다 
+                        if (cv.nextFirstConsonantNeedsPause()) {// 뒤 음소가 파열음 혹은 된소리일 때엔 VC로 공백을 준다 
                             return generateResult(cv.frontCV, cv.cVC, "", totalDuration, cv.cVCLength, 2, 8);
                         } 
                         else {// 뒤 음소가 파열음이나 된소리가 아니면 그냥 이어줌
@@ -937,8 +1007,8 @@ namespace OpenUtau.Plugin.Builtin {
             else if ((prevNeighbour != null) && (nextNeighbour != null)) {// 둘다 이웃 있음
                 if (hanguel.isHangeul(nextNeighbour?.lyric)) {// 뒤의 이웃이 한국어임
                     if (! cv.thisHasBatchim()) { // 둘다 이웃 있고 받침 없음 / 냥[냐]냥
-                        if (cv.prevHasBatchim() && (cv.thisFirstConsonantIsAspirate() || cv.thisFirstConsonantIsFortis() || cv.thisFirstConsonantIsFricative())) {
-                            if (cv.nextFirstConsonantIsAspirate() || cv.nextFirstConsonantIsFortis() || cv.nextFirstConsonantIsFricative()) {// 뒤 음소가 파열음 혹은 된소리일 때엔 VC로 공백을 준다 
+                        if (cv.thisNeedsFrontCV()) {
+                            if (cv.nextFirstConsonantNeedsPause()) {// 뒤 음소가 파열음 혹은 된소리일 때엔 VC로 공백을 준다 
                                 return generateResult(cv.frontCV, "", totalDuration, cv.vcLength, 2);
                             } 
                             else {
@@ -946,7 +1016,7 @@ namespace OpenUtau.Plugin.Builtin {
                             }
                         }
                         else{// 뒤 음소가 파열음 혹은 된소리일 때엔 VC로 공백을 준다 ))
-                            if (cv.nextFirstConsonantIsAspirate() || cv.nextFirstConsonantIsFortis() || cv.nextFirstConsonantIsFricative()) {// 뒤 음소가 파열음 혹은 된소리일 때엔 VC로 공백을 준다 
+                            if (cv.nextFirstConsonantNeedsPause()) {// 뒤 음소가 파열음 혹은 된소리일 때엔 VC로 공백을 준다 
                                 return generateResult(cv.CV, "", totalDuration, cv.vcLength, 2);
                             } 
                             else {
@@ -955,8 +1025,8 @@ namespace OpenUtau.Plugin.Builtin {
                         }   
                     }
                     else{
-                        if (cv.prevHasBatchim() && (cv.thisFirstConsonantIsAspirate() || cv.nextFirstConsonantIsAspirate() || cv.nextFirstConsonantIsFortis() || cv.nextFirstConsonantIsFricative())) {
-                            if (cv.nextFirstConsonantIsAspirate() || cv.nextFirstConsonantIsFortis() || cv.nextFirstConsonantIsFricative()) {// 뒤 음소가 파열음 혹은 된소리일 때엔 VC로 공백을 준다 
+                        if (cv.thisNeedsFrontCV()) {
+                            if (cv.nextFirstConsonantNeedsPause()) {// 뒤 음소가 파열음 혹은 된소리일 때엔 VC로 공백을 준다 
                                 return generateResult(cv.frontCV, cv.cVC, "", totalDuration, cv.cVCLength, 2, 8);
                             } 
                             else {
@@ -964,7 +1034,7 @@ namespace OpenUtau.Plugin.Builtin {
                             }
                         }
                         else{// 뒤 음소가 파열음 혹은 된소리일 때엔 VC로 공백을 준다 ))
-                            if (cv.nextFirstConsonantIsAspirate() || cv.nextFirstConsonantIsFortis() || cv.nextFirstConsonantIsFricative()) {// 뒤 음소가 파열음 혹은 된소리일 때엔 VC로 공백을 준다 
+                            if (cv.nextFirstConsonantNeedsPause()) {// 뒤 음소가 파열음 혹은 된소리일 때엔 VC로 공백을 준다 
                                 return generateResult(cv.CV, cv.cVC, "", totalDuration, cv.cVCLength, 2, 8);
                             } 
                             else {
