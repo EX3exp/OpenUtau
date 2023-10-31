@@ -15,7 +15,7 @@ using static OpenUtau.Api.Phonemizer;
 // TODO 이중모음 늘어지는 문제 해결, 이중모음 분리 + 이중모음 미분리 케이스 모두 구현
 
 namespace OpenUtau.Core.DiffSinger{
-    [Phonemizer("DiffSinger Korean Phonemizer", "DIFFS KO", language: "KO")]
+    [Phonemizer("DiffSinger Korean Phonemizer", "DIFFS KO", language: "KO", author: "EX3")]
     public class DiffSingerKoreanPhonemizer : DiffSingerBasePhonemizer{
         protected Hanguel hangeul = new Hanguel();
         USinger singer;
