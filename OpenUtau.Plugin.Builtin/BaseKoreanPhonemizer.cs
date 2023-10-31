@@ -5,7 +5,7 @@ using OpenUtau.Api;
 using OpenUtau.Core.Ustx;
 using OpenUtau.Core.Util;
 
-namespace OpenUtau.Core {
+namespace OpenUtau.Plugin.Builtin {
     public abstract class BaseKoreanPhonemizer : Phonemizer {
         // Can process Phoneme variation.
         // Can find Alias in oto, including Voice color etc.

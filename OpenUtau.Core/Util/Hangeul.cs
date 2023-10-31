@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Diagnostics;
 using static OpenUtau.Api.Phonemizer;
 
 namespace OpenUtau.Core.Util
@@ -167,6 +168,42 @@ namespace OpenUtau.Core.Util
 
 
                 return separatedHangeul;
+            }
+
+            /// <summary>
+            /// merges separated hangeul into complete hangeul. (Example: {[0]: "ㄱ", [1]: "ㅏ", [2]: " "} => "가"})
+            /// <para>자모로 쪼개진 한글을 합쳐진 한글로 반환합니다.</para>
+            /// </summary>
+            /// <param name="separated">separated Hangeul. </param>
+            /// <returns>Returns complete Hangeul Character.</returns>
+            public string merge(Hashtable separatedHangeul){
+                
+                int hangeulIndex; // unicode index of hangeul - unicode index of '가' (ex) '냥'
+
+                int firstConsonantIndex; // (ex) 2
+                int middleVowelIndex; // (ex) 2
+                int lastConsonantIndex; // (ex) 21
+
+                char firstConsonant = ((string)separatedHangeul[0])[0]; // (ex) "ㄴ"
+                char middleVowel = ((string)separatedHangeul[1])[0]; // (ex) "ㅑ"
+                char lastConsonant = ((string)separatedHangeul[2])[0]; // (ex) "ㅇ"
+
+                if (firstConsonant == ' '){
+                    firstConsonant = 'ㅇ';
+                }
+            
+
+                Hashtable mergedHangeul; // (ex) 냥
+
+                firstConsonantIndex = FIRST_CONSONANTS.IndexOf(firstConsonant); // 초성 인덱스
+                middleVowelIndex = MIDDLE_VOWELS.IndexOf(middleVowel); // 중성 인덱스
+                lastConsonantIndex = LAST_CONSONANTS.IndexOf(lastConsonant); // 종성 인덱스
+ 
+                int mergedCode = HANGEUL_UNICODE_START + (firstConsonantIndex * 21 + middleVowelIndex) * 28 + lastConsonantIndex;
+                
+                string result = Convert.ToChar(mergedCode).ToString();
+                Debug.Print("Hangeul merged: " + $"{firstConsonant} + {middleVowel} + {lastConsonant} = " + result);
+                return result;
             }
 
             /// <summary>
@@ -735,5 +772,285 @@ namespace OpenUtau.Core.Util
 
             }
 
+            /// <summary>
+            /// (for diffsinger phonemizer)
+            /// Conducts phoneme variation automatically with prevNeighbour, note, nextNeighbour.  
+            /// <br/><br/> prevNeighbour, note, nextNeighbour를 입력받아 자동으로 음운 변동을 진행합니다.
+            /// </summary>
+            /// <param name="prevNeighbour"> lyric String of prev note, if exists(otherwise null).
+            /// <br/> 이전 가사 혹은 null.
+            /// <br/><br/>(Example: lyric String with lyric '춘')
+            /// </param>
+            /// <param name="note"> lyric String of current note. 
+            /// <br/> 현재 가사.
+            /// <br/><br/>(Example: Note with lyric '향')
+            /// </param>
+            /// <param name="nextNeighbour"> lyric String of next note, if exists(otherwise null).
+            /// <br/> 다음 가사 혹은 null.
+            /// <br/><br/>(Example: null)
+            /// </param>
+            /// <returns> Returns phoneme variation result of prevNote, currentNote, nextNote.
+            /// <br/>이전 노트, 현재 노트, 다음 노트의 음운변동 결과를 반환합니다.
+            /// <br/>Example: 춘 [향] null: {[0]="ㅊ", [1]="ㅜ", [2]=" ", [3]="ㄴ", [4]="ㅑ", [5]="ㅇ", [6]="null", [7]="null", [8]="null"} [추 냥 null]
+            /// </returns>
+            public String variate(String? prevNeighbour, String note, String? nextNeighbour) {
+                // prevNeighbour와 note와 nextNeighbour의 음원변동된 가사를 반환
+                // prevNeighbour : VV 정렬에 사용
+                // nextNeighbour : VC 정렬에 사용
+                // 뒤의 노트가 없으면 리턴되는 값의 6~8번 인덱스가 null로 채워진다.
+
+                /// whereYeonEum : 발음기호 .을 사용하기 위한 변수
+                /// .을 사용하면 앞에서 단어가 끝났다고 간주하고, 끝소리에 음운변동을 적용한 후 연음합니다. 
+                /// ex) 무 릎 위 [무르퓌] 무 릎. 위[무르뷔]
+                /// 
+                /// -1 : 해당사항 없음
+                /// 0 : 이전 노트를 연음하지 않음
+                /// 1 : 현재 노트를 연음하지 않음
+                int whereYeonEum = -1;
+
+                string?[] lyrics = new string?[] { prevNeighbour, note, nextNeighbour};
+
+
+                if (!isHangeul(lyrics[0])) {
+                    // 앞노트 한국어 아니거나 null일 경우 null처리
+                    if (lyrics[0] != null) {
+                        lyrics[0] = null;
+                    }
+                } else if (!isHangeul(lyrics[2])) {
+                    // 뒤노트 한국어 아니거나 null일 경우 null처리
+                    if (lyrics[2] != null) {
+                        lyrics[2] = null;
+                    }
+
+                }
+                if ((lyrics[0] != null) && lyrics[0].StartsWith('!')) {
+                    /// 앞노트 ! 기호로 시작함 ex) [!냥]냥냥
+                    if (lyrics[0] != null) {
+                        // 0번가사 없는 걸로 간주함 null냥냥
+                        lyrics[0] = null;
+                    }
+                }
+                if ((lyrics[1] != null) && (lyrics[1].StartsWith('!'))) {
+                    /// 중간노트 ! 기호로 시작함 ex) 냥[!냥]냥
+                    /// 음운변동 미적용
+                    lyrics[1] = lyrics[1].TrimStart('!');
+                    if (lyrics[0] != null) {
+                        // 0번가사 없는 걸로 간주함 null[!냥]냥
+                        lyrics[0] = null;
+                    }
+                    if (lyrics[2] != null) {
+                        // 2번가사도 없는 걸로 간주함 null[!냥]null
+                        lyrics[2] = null;
+                    }
+                }
+                if ((lyrics[2] != null) && (lyrics[2].StartsWith('!'))) {
+                    /// 뒤노트 ! 기호로 시작함 ex) 냥냥[!냥]
+                    if (lyrics[2] != null) {
+                        // 2번가사 없는 걸로 간주함 냥냥b
+                        lyrics[2] = null;
+                    }
+                }
+
+                if ((lyrics[0] != null) && (lyrics[0].EndsWith('.'))) {
+                    /// 앞노트 . 기호로 끝남 ex) [냥.]냥냥
+                    lyrics[0] = lyrics[0].TrimEnd('.');
+                    whereYeonEum = 0;
+                }
+                if ((lyrics[1] != null) && (lyrics[1].EndsWith('.'))) {
+                    /// 중간노트 . 기호로 끝남 ex) 냥[냥.]냥
+                    /// 음운변동 없이 연음만 적용
+                    lyrics[1] = lyrics[1].TrimEnd('.');
+                    whereYeonEum = 1;
+                }
+                if ((lyrics[2] != null) && (lyrics[2].EndsWith('.'))) {
+                    /// 뒤노트 . 기호로 끝남 ex) 냥냥[냥.]
+                    /// 중간노트의 발음에 관여하지 않으므로 간단히 . 만 지워주면 된다
+                    lyrics[2] = lyrics[2].TrimEnd('.');
+                }
+
+                // 음운변동 적용 --
+                if ((lyrics[0] == null) && (lyrics[2] != null)) {
+                    /// 앞이 없고 뒤가 있음
+                    /// null[냥]냥
+                    if (whereYeonEum == 1) {
+                        // 현재 노트에서 단어가 끝났다고 가정
+                        Hashtable result = new Hashtable() {
+                            [0] = "null", // 앞 글자 없음
+                            [1] = "null",
+                            [2] = "null"
+                        };
+                        Hashtable thisNoteSeparated = variate(variate(lyrics[1]), separate(lyrics[2]), -1); // 현 글자 / 끝글자처럼 음운변동시켜서 음원변동 한 번 더 하기
+
+                        result.Add(3, thisNoteSeparated[0]); // 현 글자
+                        result.Add(4, thisNoteSeparated[1]);
+                        result.Add(5, thisNoteSeparated[2]);
+
+                        result.Add(6, thisNoteSeparated[3]); // 뒤 글자
+                        result.Add(7, thisNoteSeparated[4]);
+                        result.Add(8, thisNoteSeparated[5]);
+
+                        return merge(new Hashtable{
+                        [0] = (string)result[3],
+                        [1] = (string)result[4],
+                        [2] = (string)result[5]});
+                    } else {
+                        Hashtable result = new Hashtable() {
+                            [0] = "null", // 앞 글자 없음
+                            [1] = "null",
+                            [2] = "null"
+                        };
+
+                        Hashtable thisNoteSeparated = variate(lyrics[1], lyrics[2], -1); // 현글자 뒤글자
+
+                        result.Add(3, thisNoteSeparated[0]); // 현 글자
+                        result.Add(4, thisNoteSeparated[1]);
+                        result.Add(5, thisNoteSeparated[2]);
+
+                        result.Add(6, thisNoteSeparated[3]); // 뒤 글자 없음
+                        result.Add(7, thisNoteSeparated[4]);
+                        result.Add(8, thisNoteSeparated[5]);
+
+                        return merge(new Hashtable{
+                        [0] = (string)result[3],
+                        [1] = (string)result[4],
+                        [2] = (string)result[5]});
+                    }
+                } else if ((lyrics[0] != null) && (lyrics[2] == null)) {
+                    /// 앞이 있고 뒤는 없음
+                    /// 냥[냥]null
+                    if (whereYeonEum == 1) {
+                        // 현재 노트에서 단어가 끝났다고 가정
+                        Hashtable result = variate(separate(lyrics[0]), variate(lyrics[1]), 0); // 첫 글자
+                        Hashtable thisNoteSeparated = variate(variate(separate(lyrics[0]), variate(lyrics[1]), 1)); // 현 글자 / 끝글자처럼 음운변동시켜서 음원변동 한 번 더 하기
+
+                        result.Add(3, thisNoteSeparated[0]); // 현 글자
+                        result.Add(4, thisNoteSeparated[1]);
+                        result.Add(5, thisNoteSeparated[2]);
+
+                        result.Add(6, "null"); // 뒤 글자 없음
+                        result.Add(7, "null");
+                        result.Add(8, "null");
+
+                        return merge(new Hashtable{
+                        [0] = (string)result[3],
+                        [1] = (string)result[4],
+                        [2] = (string)result[5]});
+                    } else if (whereYeonEum == 0) {
+                        // 앞 노트에서 단어가 끝났다고 가정 
+                        Hashtable result = variate(variate(lyrics[0]), separate(lyrics[1]), 0); // 첫 글자
+                        Hashtable thisNoteSeparated = variate(variate(variate(lyrics[0]), separate(lyrics[1]), 1)); // 첫 글자와 현 글자 / 앞글자를 끝글자처럼 음운변동시켜서 음원변동 한 번 더 하기
+
+                        result.Add(3, thisNoteSeparated[0]); // 현 글자
+                        result.Add(4, thisNoteSeparated[1]);
+                        result.Add(5, thisNoteSeparated[2]);
+
+                        result.Add(6, "null"); // 뒤 글자 없음
+                        result.Add(7, "null");
+                        result.Add(8, "null");
+
+                        return merge(new Hashtable{
+                        [0] = (string)result[3],
+                        [1] = (string)result[4],
+                        [2] = (string)result[5]});
+                    } else {
+                        Hashtable result = variate(lyrics[0], lyrics[1], 0); // 첫 글자
+                        Hashtable thisNoteSeparated = variate(variate(lyrics[0], lyrics[1], 1)); // 첫 글자와 현 글자 / 뒷글자 없으니까 글자 혼자 있는걸로 음운변동 한 번 더 시키기
+
+                        result.Add(3, thisNoteSeparated[0]); // 현 글자
+                        result.Add(4, thisNoteSeparated[1]);
+                        result.Add(5, thisNoteSeparated[2]);
+
+                        result.Add(6, "null"); // 뒤 글자 없음
+                        result.Add(7, "null");
+                        result.Add(8, "null");
+
+                        return merge(new Hashtable{
+                        [0] = (string)result[3],
+                        [1] = (string)result[4],
+                        [2] = (string)result[5]});
+                    }
+
+                } else if ((lyrics[0] != null) && (lyrics[2] != null)) {
+                    /// 앞도 있고 뒤도 있음
+                    /// 냥[냥]냥
+                    if (whereYeonEum == 1) {
+                        // 현재 노트에서 단어가 끝났다고 가정 / 무 [릎.] 위
+                        Hashtable result = variate(separate(lyrics[0]), variate(lyrics[1]), 1); // 첫 글자
+                        Hashtable thisNoteSeparated = variate(variate(separate(lyrics[0]), variate(lyrics[1]), 1), separate(lyrics[2]), -1);// 현글자와 다음 글자 / 현 글자를 끝글자처럼 음운변동시켜서 음원변동 한 번 더 하기
+
+                        result.Add(3, thisNoteSeparated[0]); // 현 글자
+                        result.Add(4, thisNoteSeparated[1]);
+                        result.Add(5, thisNoteSeparated[2]);
+
+                        result.Add(6, thisNoteSeparated[3]); // 뒤 글자
+                        result.Add(7, thisNoteSeparated[4]);
+                        result.Add(8, thisNoteSeparated[5]);
+
+                        return merge(new Hashtable{
+                        [0] = (string)result[3],
+                        [1] = (string)result[4],
+                        [2] = (string)result[5]});
+                    } else if (whereYeonEum == 0) {
+                        // 앞 노트에서 단어가 끝났다고 가정 / 릎. [위] 놓
+                        Hashtable result = variate(variate(lyrics[0]), separate(lyrics[1]), 0); // 첫 글자
+                        Hashtable thisNoteSeparated = variate(variate(variate(lyrics[0]), separate(lyrics[1]), 1), separate(lyrics[2]), -1); // 현 글자와 뒤 글자 / 앞글자 끝글자처럼 음운변동시켜서 음원변동 한 번 더 하기
+
+                        result.Add(3, thisNoteSeparated[0]); // 현 글자
+                        result.Add(4, thisNoteSeparated[1]);
+                        result.Add(5, thisNoteSeparated[2]);
+
+                        result.Add(6, thisNoteSeparated[3]); // 뒤 글자
+                        result.Add(7, thisNoteSeparated[4]);
+                        result.Add(8, thisNoteSeparated[5]);
+
+                        return merge(new Hashtable{
+                        [0] = (string)result[3],
+                        [1] = (string)result[4],
+                        [2] = (string)result[5]});
+                    } else {
+                        Hashtable result = variate(lyrics[0], lyrics[1], 0);
+                        Hashtable thisNoteSeparated = variate(variate(lyrics[0], lyrics[1], 1), separate(lyrics[2]), -1);
+
+                        result.Add(3, thisNoteSeparated[0]); // 현 글자
+                        result.Add(4, thisNoteSeparated[1]);
+                        result.Add(5, thisNoteSeparated[2]);
+
+                        result.Add(6, thisNoteSeparated[3]); // 뒤 글자
+                        result.Add(7, thisNoteSeparated[4]);
+                        result.Add(8, thisNoteSeparated[5]);
+
+                        return merge(new Hashtable{
+                        [0] = (string)result[3],
+                        [1] = (string)result[4],
+                        [2] = (string)result[5]});
+                    }
+                } else {
+                    /// 앞이 없고 뒤도 없음
+                    /// null[냥]null
+
+                    Hashtable result = new Hashtable() {
+                        // 첫 글자 >> 비어 있음
+                        [0] = "null",
+                        [1] = "null",
+                        [2] = "null"
+                    };
+
+                    Hashtable thisNoteSeparated = variate(lyrics[1]); // 현 글자
+
+                    result.Add(3, thisNoteSeparated[0]); // 현 글자
+                    result.Add(4, thisNoteSeparated[1]);
+                    result.Add(5, thisNoteSeparated[2]);
+
+
+                    result.Add(6, "null"); // 뒤 글자 비어있음
+                    result.Add(7, "null");
+                    result.Add(8, "null");
+
+                    return merge(new Hashtable{
+                        [0] = (string)result[3],
+                        [1] = (string)result[4],
+                        [2] = (string)result[5]});
+                    }
+            }
         }
 }

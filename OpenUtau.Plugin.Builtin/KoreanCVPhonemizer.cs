@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using OpenUtau.Api;
-using OpenUtau.Core;
 using OpenUtau.Core.Ustx;
 using OpenUtau.Core.Util;
 
@@ -12,7 +11,7 @@ namespace OpenUtau.Plugin.Builtin {
     /// Phonemizer for 'KOR CV' ///
     [Phonemizer("Korean CV Phonemizer", "KO CV", "EX3", language: "KO")]
 
-    public class KoreanCVPhonemizer : Core.BaseKoreanPhonemizer {
+    public class KoreanCVPhonemizer : BaseKoreanPhonemizer {
 
         // 1. Load Singer and Settings
         private KoreanCVIniSetting koreanCVIniSetting; // Setting object
