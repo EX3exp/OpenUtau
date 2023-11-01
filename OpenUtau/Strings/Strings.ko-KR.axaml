@@ -42,7 +42,7 @@
   <system:String x:Key="dialogs.messagebox.ok">확인</system:String>
   <system:String x:Key="dialogs.messagebox.yes">네</system:String>
   <system:String x:Key="dialogs.noresampler.caption">리샘플러가 없어요.</system:String>
-  <system:String x:Key="dialogs.noresampler.message">폴더에 리샘플러가 없어요! 좋아하는 리샘플러의 exe나 dll을 "Resamplers"폴더에 넣고, [환경 설정]을 켜서 원하는 리샘플러를 골라 봅시다.</system:String>
+  <system:String x:Key="dialogs.noresampler.message">폴더에 리샘플러가 없어요! 좋아하는 리샘플러의 exe나 dll을 "Resamplers"폴더에 넣고, "환경 설정"을 켜서 원하는 리샘플러를 골라 봅시다.</system:String>
   <system:String x:Key="dialogs.timesig.caption">박자표</system:String>
   <system:String x:Key="dialogs.tracksettings.caption">트랙 설정</system:String>
   <system:String x:Key="dialogs.tracksettings.location">위치 열기</system:String>
