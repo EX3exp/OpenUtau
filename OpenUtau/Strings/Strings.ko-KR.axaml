@@ -49,7 +49,7 @@
   <system:String x:Key="dialogs.tracksettings.renderer">렌더러</system:String>
   <system:String x:Key="dialogs.tracksettings.setasdefault">기본값으로 사용</system:String>
   <system:String x:Key="dialogs.voicecolorremapping">보이스 컬러 재맵핑</system:String>
-  <system:String x:Key="dialogs.voicecolorremapping.caption">바뀐 컬러가 이 트랙의 모든 노트에 적용되요: </system:String>
+  <system:String x:Key="dialogs.voicecolorremapping.caption">▼ 재맵핑된 컬러가 이 트랙의 모든 노트에 적용되요 </system:String>
 
   <system:String x:Key="errors.caption">오류가 발생했어요!</system:String>
 
