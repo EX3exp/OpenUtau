@@ -222,7 +222,7 @@
   <system:String x:Key="pianoroll.menu.notes.addtaildash">끝 기호 추가: "-"</system:String>
   <system:String x:Key="pianoroll.menu.notes.addtailrest">끝 기호 추가: "R"</system:String>
   <system:String x:Key="pianoroll.menu.notes.bakepitch">"피치 커브"를 "피치 점을 사용하는 피치선"으로 변환</system:String>
-  <system:String x:Key="pianoroll.menu.notes.clear.vibratos">비브라토 없애기</system:String>
+  <system:String x:Key="pianoroll.menu.notes.clear.vibratos">"비브라토" 아예 없애기</system:String>
   <system:String x:Key="pianoroll.menu.notes.hanzitopinyin">"중국어 한자"를 "중국어 병음"으로</system:String>
   <system:String x:Key="pianoroll.menu.notes.lengthencrossfade">"크로스페이드 길이" 늘리기(더 부드럽게)</system:String>
   <system:String x:Key="pianoroll.menu.notes.loadrenderedpitch">"렌더링된 피치 커브" 불러오기</system:String>
@@ -416,7 +416,7 @@
   <system:String x:Key="singersetup.archivefileencoding">압축 파일의 인코딩</system:String>
   <system:String x:Key="singersetup.archivefileencoding.prompt">파일명이 정상적으로 보일 때까지 "인코딩"을 조정하세요.</system:String>
   <system:String x:Key="singersetup.back">이전으로</system:String>
-  <system:String x:Key="singersetup.install">이하의 내용으로 가수 설치</system:String>
+  <system:String x:Key="singersetup.install">가수 설치</system:String>
   <system:String x:Key="singersetup.next">다음으로</system:String>
   <system:String x:Key="singersetup.missinginfo">가수의 character.yaml에 다음의 설정이 없어, 정보 입력을 진행합니다.</system:String>
   <system:String x:Key="singersetup.singertype">이 가수의 타입</system:String>

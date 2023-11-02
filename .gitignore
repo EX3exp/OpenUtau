@@ -339,4 +339,3 @@ OpenUtau.Test/Usts/*
 appcast.*.xml
 *.tar.gz
 .vscode/
-Microsoft.AI.DirectML

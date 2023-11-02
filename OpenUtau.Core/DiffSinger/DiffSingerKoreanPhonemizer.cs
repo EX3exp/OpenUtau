@@ -3,14 +3,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using Melanchall.DryWetMidi.Interaction;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using OpenUtau.Api;
 using OpenUtau.Core.Ustx;
 using OpenUtau.Core.Util;
 using Serilog;
-using static OpenUtau.Api.Phonemizer;
 
 // TODO 이중모음 늘어지는 문제 해결, 이중모음 분리 + 이중모음 미분리 케이스 모두 구현
 
@@ -30,6 +28,8 @@ namespace OpenUtau.Core.DiffSinger{
 
         string defaultPause = "SP";
 
+        bool doesSeparateSemivowel = true; // 나중에 ko-Diff.ini로 조정 가능하게 구현 // true when Singer uses (s, y, a) format, instead of (sy, a) format. if true, handles semivowel's timing and length as same as its front consonant's.
+        bool EuiasI = false; // 나중에 ko-Diff.ini로 조정 가능하게 구현 // if true, pronounces ㅢ as ㅣ. // non-used feature
         public override void SetSinger(USinger singer) {
             this.singer = singer;
             if (File.Exists(Path.Join(singer.Location, "dsdur", "dsconfig.yaml"))) {
@@ -67,12 +67,6 @@ namespace OpenUtau.Core.DiffSinger{
                 Log.Error(e, $"failed to load duration model from {durationModelPath}");
                 return;
             }
-        }
-
-        protected Note variateThisNote(Note? prevNeighbour, Note[] notes, Note? nextNeighbour){
-            Note noteToReturn = notes[0];
-            noteToReturn.lyric = hangeul.merge(hangeul.variate(prevNeighbour, notes[0], nextNeighbour));
-            return noteToReturn;
         }
 
         string[] GetSymbols(Note note) {
@@ -127,6 +121,11 @@ namespace OpenUtau.Core.DiffSinger{
             };
             var dsPhonemes = GetDsPhonemes(notes[0]);
             var isVowel = dsPhonemes.Select(s => g2p.IsVowel(s.Symbol)).ToArray();
+            var symbols = dsPhonemes.Select(s => s.Symbol).ToArray();
+            for (int n = 0; n < symbols.Length; n++){
+                Debug.Print(symbols[n]);
+            }
+            
             var nonExtensionNotes = notes.Where(n=>!IsSyllableVowelExtensionNote(n)).ToArray();
             //distribute phonemes to notes
             var noteIndex = 0;
@@ -159,19 +158,25 @@ namespace OpenUtau.Core.DiffSinger{
             };
             var notePhIndex = new List<int> { 1 };
 
+
             String? prev = null;
             String? next = phrase[1][0].lyric;
             int i = 0;
+            
             foreach (var character in phrase) {
                 next = null;
                 if (i != phrase.Length - 1){
                     next = phrase[i + 1][0].lyric;
                 }
-                
-                Debug.Print("prev: " + prev + "curr: " + character[0].lyric + "next: " + next);
+
                 String? prevTemp = character[0].lyric;
-                character[0].lyric = hangeul.variate(prev, character[0].lyric, next);
-                Debug.Print(character[0].lyric);
+
+                if (hangeul.isHangeul(prevTemp)){
+                    // Debug.Print("prev: " + prev + "curr: " + character[0].lyric + "next: " + next);
+                    character[0].lyric = hangeul.variate(prev, prevTemp, next);
+                    // Debug.Print(character[0].lyric);
+                }
+                
                 prev = prevTemp;
                 
                 var wordPhonemes = ProcessWord(character);
@@ -179,6 +184,11 @@ namespace OpenUtau.Core.DiffSinger{
                 phrasePhonemes.AddRange(wordPhonemes.Skip(1));
                 notePhIndex.Add(notePhIndex[^1]+wordPhonemes.SelectMany(n=>n.Phonemes).Count());
                 i += 1;
+
+                // handle its timing if current character is semivowel.(y, w) 
+                if (doesSeparateSemivowel){
+                    
+                }
             }
             
             phrasePhonemes.Add(new phonemesPerNote(endTick,lastNote.tone));
