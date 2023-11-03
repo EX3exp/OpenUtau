@@ -429,8 +429,8 @@
     마우스 오른쪽 버튼으로 "표현"을 리셋하세요.
   </system:String>
   <system:String x:Key="tip.exps.notsupported">이 렌더러는 이 표현을 지원하지 않아요.</system:String>
-  <system:String x:Key="tip.lyricbox.next">Tab을 눌러 다음 노트로 이동해요.</system:String>
-  <system:String x:Key="tip.lyricbox.prev">Shift+Tab을 눌러 이전 노트로 이동해요.</system:String>
+  <system:String x:Key="tip.lyricbox.next">[Tab] (다음 노트로) →</system:String>
+  <system:String x:Key="tip.lyricbox.prev">← [Shift + Tab] (이전 노트로) </system:String>
   <system:String x:Key="tip.notes.basics">
     
     ▼ 팁 ▼
