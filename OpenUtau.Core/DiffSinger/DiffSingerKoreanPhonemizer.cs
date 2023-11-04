@@ -12,7 +12,6 @@ using OpenUtau.Core.Ustx;
 using OpenUtau.Core.Util;
 using Serilog;
 
-// TODO 이중모음 늘어지는 문제 해결, 이중모음 분리 + 이중모음 미분리 케이스 모두 구현
 
 namespace OpenUtau.Core.DiffSinger{
     [Phonemizer("DiffSinger Korean Phonemizer", "DIFFS KO", language: "KO", author: "EX3")]
@@ -30,8 +29,6 @@ namespace OpenUtau.Core.DiffSinger{
 
         string defaultPause = "SP";
 
-        bool doesSeparateSemivowel = true; // 나중에 ko-Diff.ini로 조정 가능하게 구현 // true when Singer uses (s, y, a) format, instead of (sy, a) format. if true, handles semivowel's timing and length as same as its front consonant's.
-        bool EuiasI = false; // 나중에 ko-Diff.ini로 조정 가능하게 구현 // if true, pronounces ㅢ as ㅣ. // non-used feature
         public override void SetSinger(USinger singer) {
             this.singer = singer;
             if (File.Exists(Path.Join(singer.Location, "dsdur", "dsconfig.yaml"))) {
