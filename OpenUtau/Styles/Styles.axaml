@@ -46,7 +46,7 @@
 
   <Style Selector="ContextMenu MenuItem">
     <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontSize" Value="12"/>
     <Setter Property="Padding" Value="4,2,4,2"/>
   </Style>
 
@@ -168,14 +168,14 @@
 
   <Style Selector="ComboBox">
     <Setter Property="Background" Value="{DynamicResource SystemRegionBrush}"/>
-    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontSize" Value="12"/>
     <Setter Property="MinHeight" Value="20"/>
     <Setter Property="Height" Value="20"/>
     <Setter Property="Margin" Value="0,4"/>
     <Setter Property="Padding" Value="4,0,0,2"/>
   </Style>
   <Style Selector="ComboBoxItem">
-    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontSize" Value="12"/>
     <Setter Property="MinHeight" Value="20"/>
     <Setter Property="Height" Value="20"/>
     <Setter Property="Margin" Value="0"/>
@@ -208,11 +208,11 @@
   </Style>
 
   <Style Selector="DataGridColumnHeader">
-    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontSize" Value="12" />
     <Setter Property="MinHeight" Value="20" />
   </Style>
   <Style Selector="DataGridCell">
-    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontSize" Value="12" />
     <Setter Property="MinHeight" Value="20" />
   </Style>
   <Style Selector="DataGridCell > TextBox">

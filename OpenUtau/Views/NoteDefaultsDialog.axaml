@@ -3,12 +3,12 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:OpenUtau.App.ViewModels"
-        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="580"
+        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="600"
         x:Class="OpenUtau.App.Views.NoteDefaultsDialog"
         Icon="/Assets/open-utau.ico"
         Title="{DynamicResource notedefaults.caption}"
         WindowStartupLocation="CenterScreen"
-        MinWidth="600" MinHeight="500" Width="640" Height="500"
+        MinWidth="600" MinHeight="500" Width="640" Height="600"
         ExtendClientAreaToDecorationsHint="False"
         Focusable="True">
   <Window.Resources>
