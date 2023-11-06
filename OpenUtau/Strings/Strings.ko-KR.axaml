@@ -64,7 +64,7 @@
   <system:String x:Key="exps.minvalue">최솟값</system:String>
   <system:String x:Key="exps.name">표현 이름</system:String>
   <system:String x:Key="exps.optionvalues">선택형 값</system:String>
-  <system:String x:Key="exps.sepbycomma">','(쉼표)로 노트를 구분해요. </system:String>
+  <system:String x:Key="exps.sepbycomma">','(쉼표)로 값을 구분해요. </system:String>
   <system:String x:Key="exps.type">표현 종류</system:String>
   <system:String x:Key="exps.type.curve">커브형 표현</system:String>
   <system:String x:Key="exps.type.numerical">숫자형 표현</system:String>
@@ -249,14 +249,14 @@
   <system:String x:Key="pianoroll.menu.searchnote.next">다음으로 이동</system:String>
   <system:String x:Key="pianoroll.menu.searchnote.prev">이전으로 이동</system:String>
   <system:String x:Key="pianoroll.toggle.finalpitch">최종 렌더링된 피치 커브 보기 (R)</system:String>
-  <system:String x:Key="pianoroll.toggle.noteparams">노트 파라미터 창 표시 (\)</system:String>
+  <system:String x:Key="pianoroll.toggle.noteparams">노트 설정 열기 (\)</system:String>
   <system:String x:Key="pianoroll.toggle.phoneme">음소 표시 (O)</system:String>
   <system:String x:Key="pianoroll.toggle.pitch">피치선 표시 (I)</system:String>
   <system:String x:Key="pianoroll.toggle.snap">물리기 활성화 (P)</system:String>
   <system:String x:Key="pianoroll.toggle.snap.auto">자동 물리기</system:String>
   <system:String x:Key="pianoroll.toggle.snap.autotriplet">자동 물리기 (3연음)</system:String>
   <system:String x:Key="pianoroll.toggle.tips">팁 표시 (T)</system:String>
-  <system:String x:Key="pianoroll.toggle.tone">노트 음계 활성화 (Y)</system:String>
+  <system:String x:Key="pianoroll.toggle.tone">노트음 켜기 (Y)</system:String>
   <system:String x:Key="pianoroll.toggle.vibrato">비브라토 표시 (U)</system:String>
   <system:String x:Key="pianoroll.toggle.waveform">파형 표시 (W)</system:String>
   <system:String x:Key="pianoroll.tool.drawpitch">

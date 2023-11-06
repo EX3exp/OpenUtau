@@ -35,7 +35,7 @@
 
     <StackPanel Grid.Row="8" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
       <!-- <Button Content="{StaticResource lyrics.cancel}" Margin="0" Click="OnCancel"/>-->
-      <Button Content="{StaticResource lyrics.apply}" Margin="0" MinWidth="50" Click="OnFinish"/>
+      <Button Padding="1" Content="{StaticResource lyrics.apply}" Margin="0" MinWidth="50" Click="OnFinish"/>
     </StackPanel>
   </Grid>
 </Window>

@@ -3,8 +3,9 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:OpenUtau.App.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="600" Width="400"
-             x:Class="OpenUtau.App.Controls.NotePropertiesControl" KeyDown="OnKeyDown" Margin="0">
+             mc:Ignorable="d" d:DesignWidth="370" d:DesignHeight="600" Width="370"
+             x:Class="OpenUtau.App.Controls.NotePropertiesControl" KeyDown="OnKeyDown" Margin="0"
+             Focusable="True">
   <UserControl.Styles>
     <Style Selector="Button,CheckBox">
       <Setter Property="Focusable" Value="False"/>
@@ -20,13 +21,10 @@
   <Grid>
     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Visible">
       <StackPanel Margin="10">
-        <TextBlock Text="{Binding Title}" HorizontalAlignment="Center"/>
-        <TextBlock Text="!!! WORK IN PROGRESS !!!" HorizontalAlignment="Center" Foreground="Red"/>
-
         <Expander Header="{DynamicResource notedefaults.lyric}" HorizontalAlignment="Stretch" Margin="5">
           <Grid ColumnDefinitions="143,*">
             <Label Content="{DynamicResource notedefaults.lyric}" Grid.Column="0"/>
-            <TextBox Text="{Binding Lyric}" IsEnabled="{Binding IsNoteSelected}" Grid.Column="1" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
+            <TextBox Text="{Binding Lyric}" FontSize="13" Height="25" Margin="3,3,3,3" IsEnabled="{Binding IsNoteSelected}" Grid.Column="1" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
           </Grid>
         </Expander>
 
@@ -38,23 +36,23 @@
                 SelectedItem="{Binding ApplyPortamentoPreset}" HorizontalAlignment="Stretch"/>
             </Grid>
             <Grid ColumnDefinitions="123,20,*,20,*">
-              <Button Grid.Column="2" Content="{DynamicResource notedefaults.preset.save}"
+              <Button Grid.Column="2" FontSize="12" Height="24" Padding="1" Margin="0,1,0,10" Content="{DynamicResource notedefaults.preset.save}"
                       HorizontalAlignment="Stretch" Click="OnSavePortamentoPreset"
                       ToolTip.Tip="{DynamicResource notedefaults.preset.save.tooltip}"/>
-              <Button Grid.Column="4" Content="{DynamicResource notedefaults.preset.remove}"
+              <Button Grid.Column="4" FontSize="12" Height="24" Padding="1" Margin="0,1,0,10" Content="{DynamicResource notedefaults.preset.remove}"
                       HorizontalAlignment="Stretch" Command="{Binding RemoveAppliedPortamentoPreset}"
                       ToolTip.Tip="{DynamicResource notedefaults.preset.remove.tooltip}"/>
             </Grid>
             <Grid ColumnDefinitions="130,20,50,20,*">
               <Label Content="{DynamicResource notedefaults.portamento.length}"/>
-              <TextBox Grid.Column="2" Text="{Binding PortamentoLength}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
+              <TextBox Grid.Column="2" TextAlignment="Center" FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" Text="{Binding PortamentoLength}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
               <Slider Grid.Column="4" Classes="fader" Value="{Binding PortamentoLength}" Minimum="2" Maximum="320"
                       TickPlacement="BottomRight" TickFrequency="1" IsSnapToTickEnabled="true"
                       GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
             </Grid>
             <Grid ColumnDefinitions="130,20,50,20,*">
               <Label Content="{DynamicResource notedefaults.portamento.start}"/>
-              <TextBox Grid.Column="2" Text="{Binding PortamentoStart}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
+              <TextBox Grid.Column="2" TextAlignment="Center" FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" Text="{Binding PortamentoStart}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
               <Slider Grid.Column="4" Classes="fader" Value="{Binding PortamentoStart}" Minimum="-200" Maximum="200"
                       TickPlacement="BottomRight" TickFrequency="1" IsSnapToTickEnabled="true"
                       GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
@@ -81,67 +79,67 @@
             </Grid>
             <Grid ColumnDefinitions="130,20,50,20,*">
               <Label Content="{DynamicResource notedefaults.vibrato.length}"/>
-              <TextBox Grid.Column="2" Text="{Binding VibratoLength}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
+              <TextBox Grid.Column="2" TextAlignment="Center" FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" Text="{Binding VibratoLength}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
               <Slider Grid.Column="4" Classes="fader" Value="{Binding VibratoLength}" Minimum="0" Maximum="100"
                       TickPlacement="BottomRight" TickFrequency="0.1" IsSnapToTickEnabled="true"
                       GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
             </Grid>
             <Grid ColumnDefinitions="130,20,50,20,*">
               <Label Content="{DynamicResource notedefaults.vibrato.period}"/>
-              <TextBox Grid.Column="2" Text="{Binding VibratoPeriod}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
+              <TextBox Grid.Column="2" TextAlignment="Center" FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" Text="{Binding VibratoPeriod}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
               <Slider Grid.Column="4" Classes="fader" Value="{Binding VibratoPeriod}" Minimum="5" Maximum="500"
                       TickPlacement="BottomRight" TickFrequency="0.1" IsSnapToTickEnabled="true"
                       GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
             </Grid>
             <Grid ColumnDefinitions="130,20,50,20,*">
               <Label Content="{DynamicResource notedefaults.vibrato.depth}"/>
-              <TextBox Grid.Column="2" Text="{Binding VibratoDepth}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
+              <TextBox Grid.Column="2" TextAlignment="Center" FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" Text="{Binding VibratoDepth}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
               <Slider Grid.Column="4" Classes="fader" Value="{Binding VibratoDepth}" Minimum="5" Maximum="200"
                       TickPlacement="BottomRight" TickFrequency="0.1" IsSnapToTickEnabled="true"
                       GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
             </Grid>
             <Grid ColumnDefinitions="130,20,50,20,*">
               <Label Content="{DynamicResource notedefaults.vibrato.in}"/>
-              <TextBox Grid.Column="2" Text="{Binding VibratoIn}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
+              <TextBox Grid.Column="2" TextAlignment="Center" FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" Text="{Binding VibratoIn}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
               <Slider Grid.Column="4" Classes="fader" Value="{Binding VibratoIn}" Minimum="0" Maximum="100"
                       TickPlacement="BottomRight" TickFrequency="0.1" IsSnapToTickEnabled="true"
                       GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
             </Grid>
             <Grid ColumnDefinitions="130,20,50,20,*">
               <Label Content="{DynamicResource notedefaults.vibrato.out}"/>
-              <TextBox Grid.Column="2" Text="{Binding VibratoOut}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
+              <TextBox Grid.Column="2" TextAlignment="Center" FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" Text="{Binding VibratoOut}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
               <Slider Grid.Column="4" Classes="fader" Value="{Binding VibratoOut}" Minimum="0" Maximum="100"
                       TickPlacement="BottomRight" TickFrequency="0.1" IsSnapToTickEnabled="true"
                       GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
             </Grid>
             <Grid ColumnDefinitions="130,20,50,20,*">
               <Label Content="{DynamicResource notedefaults.vibrato.shift}"/>
-              <TextBox Grid.Column="2" Text="{Binding VibratoShift}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
+              <TextBox Grid.Column="2" TextAlignment="Center" FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" Text="{Binding VibratoShift}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
               <Slider Grid.Column="4" Classes="fader" Value="{Binding VibratoShift}" Minimum="0" Maximum="100"
                       TickPlacement="BottomRight" TickFrequency="0.1" IsSnapToTickEnabled="true"
                       GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
             </Grid>
             <Grid ColumnDefinitions="130,20,50,20,*">
               <Label Content="{DynamicResource notedefaults.vibrato.drift}"/>
-              <TextBox Grid.Column="2" Text="{Binding VibratoDrift}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
+              <TextBox Grid.Column="2" TextAlignment="Center" FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" Text="{Binding VibratoDrift}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
               <Slider Grid.Column="4" Classes="fader" Value="{Binding VibratoDrift}" Minimum="-100" Maximum="100"
                       TickPlacement="BottomRight" TickFrequency="0.1" IsSnapToTickEnabled="true"
                       GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
             </Grid>
             <Grid ColumnDefinitions="130,20,50,20,*">
               <Label Content="{DynamicResource notedefaults.vibrato.vollink}"/>
-              <TextBox Grid.Column="2" Text="{Binding VibratoVolLink}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
+              <TextBox Grid.Column="2" TextAlignment="Center" FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" Text="{Binding VibratoVolLink}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
               <Slider Grid.Column="4" Classes="fader" Value="{Binding VibratoVolLink}" Minimum="-100" Maximum="100"
                       TickPlacement="BottomRight" TickFrequency="0.1" IsSnapToTickEnabled="true"
                       GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
             </Grid>
             <Grid ColumnDefinitions="123,20,*">
               <Label Content="{DynamicResource noteproperty.setlongnote}"/>
-              <CheckBox Grid.Column="2" IsChecked="{Binding AutoVibratoToggle}"/>
+              <CheckBox Grid.Column="2" Height="20" Padding="1" Margin="0,5,0,5" IsChecked="{Binding AutoVibratoToggle}"/>
             </Grid>
             <Grid ColumnDefinitions="180,20,50,20,*">
               <Label Content="{DynamicResource notedefaults.vibrato.autominlength}"/>
-              <TextBox Grid.Column="2" IsEnabled="{Binding AutoVibratoToggle}" Text="{Binding AutoVibratoNoteLength}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
+              <TextBox Grid.Column="2" TextAlignment="Center" FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" IsEnabled="{Binding AutoVibratoToggle}" Text="{Binding AutoVibratoNoteLength}" GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>
               <Slider Grid.Column="4" Classes="fader" IsEnabled="{Binding AutoVibratoToggle}" Value="{Binding AutoVibratoNoteLength}" Minimum="10" Maximum="1920"
                       TickPlacement="BottomRight" TickFrequency="1" IsSnapToTickEnabled="true"
                       GotFocus="OnGotFocus" LostFocus="OnLostFocus"/>

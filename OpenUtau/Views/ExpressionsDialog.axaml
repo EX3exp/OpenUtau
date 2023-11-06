@@ -22,7 +22,7 @@
       <ListBox ItemsSource="{Binding Expressions}" SelectedItem="{Binding Expression}">
         <ListBox.ItemTemplate>
           <DataTemplate>
-            <TextBlock Text="{Binding}"/>
+            <TextBlock Text="{Binding}" FontSize="13" Height="20" Padding="1" Margin="0,5,0,5"/>
           </DataTemplate>
         </ListBox.ItemTemplate>
       </ListBox>
@@ -38,16 +38,16 @@
     </Grid>
     <StackPanel Margin="170,10,10,40" HorizontalAlignment="Stretch">
       <Grid>
-        <Label Content="{DynamicResource exps.name}" Width="130" HorizontalAlignment="Left"/>
-        <TextBox Margin="140,0,0,4" IsEnabled="{Binding Expression.IsCustom}" Text="{Binding Expression.Name}"/>
+        <Label FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" Content="{DynamicResource exps.name}" Width="130" HorizontalAlignment="Left"/>
+        <TextBox Margin="140,5,0,7" IsEnabled="{Binding Expression.IsCustom}" Text="{Binding Expression.Name}"/>
       </Grid>
       <Grid>
-        <Label Content="{DynamicResource exps.abbr}" Width="130" HorizontalAlignment="Left"/>
-        <TextBox Margin="140,0,0,4" IsEnabled="{Binding Expression.IsCustom}" Text="{Binding Expression.Abbr}"/>
+        <Label FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" Content="{DynamicResource exps.abbr}" Width="130" HorizontalAlignment="Left"/>
+        <TextBox Margin="140,5,0,7" IsEnabled="{Binding Expression.IsCustom}" Text="{Binding Expression.Abbr}"/>
       </Grid>
       <Grid>
-        <Label Content="{DynamicResource exps.type}" Width="130" HorizontalAlignment="Left"/>
-        <ComboBox Margin="140,0,0,4" HorizontalAlignment="Stretch"
+        <Label FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" Content="{DynamicResource exps.type}" Width="130" HorizontalAlignment="Left"/>
+        <ComboBox Margin="140,5,0,7" HorizontalAlignment="Stretch"
                   IsEnabled="{Binding Expression.IsCustom}"
                   SelectedIndex="{Binding Expression.SelectedType}"
                   SelectionChanged="OnExpressionTypeChanged">
@@ -57,29 +57,29 @@
         </ComboBox>
       </Grid>
       <Grid IsVisible="{Binding Expression.IsOptions}">
-        <Label Content="{DynamicResource exps.isflag}" Width="130" HorizontalAlignment="Left"/>
-        <CheckBox Margin="140,0,0,4" IsEnabled="{Binding Expression.IsCustom}" IsChecked="{Binding Expression.IsFlag}"/>
+        <Label FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" Content="{DynamicResource exps.isflag}" Width="130" HorizontalAlignment="Left"/>
+        <CheckBox Margin="140,5,0,7" IsEnabled="{Binding Expression.IsCustom}" IsChecked="{Binding Expression.IsFlag}"/>
       </Grid>
       <Grid IsVisible="{Binding Expression.IsNumerical}">
-        <Label Content="{DynamicResource exps.flag}" Width="130" HorizontalAlignment="Left"/>
-        <TextBox Margin="140,0,0,4" IsEnabled="{Binding Expression.IsCustom}" Text="{Binding Expression.Flag}"/>
+        <Label FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" Content="{DynamicResource exps.flag}" Width="130" HorizontalAlignment="Left"/>
+        <TextBox FontSize="12" Padding="1" Margin="140,5,0,7" IsEnabled="{Binding Expression.IsCustom}" Text="{Binding Expression.Flag}"/>
       </Grid>
       <Grid IsVisible="{Binding Expression.ShowNumbers}">
-        <Label Content="{DynamicResource exps.minvalue}" Width="130" HorizontalAlignment="Left"/>
-        <TextBox Margin="140,0,0,4" IsEnabled="{Binding Expression.IsCustom}" Text="{Binding Expression.Min}"/>
+        <Label FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" Content="{DynamicResource exps.minvalue}" Width="130" HorizontalAlignment="Left"/>
+        <TextBox FontSize="12" Padding="1" Margin="140,5,0,7" IsEnabled="{Binding Expression.IsCustom}" Text="{Binding Expression.Min}"/>
       </Grid>
       <Grid IsVisible="{Binding Expression.ShowNumbers}">
-        <Label Content="{DynamicResource exps.maxvalue}" Width="130" HorizontalAlignment="Left"/>
-        <TextBox Margin="140,0,0,4" IsEnabled="{Binding Expression.IsCustom}" Text="{Binding Expression.Max}"/>
+        <Label FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" Content="{DynamicResource exps.maxvalue}" Width="130" HorizontalAlignment="Left"/>
+        <TextBox Margin="140,5,0,7" IsEnabled="{Binding Expression.IsCustom}" Text="{Binding Expression.Max}"/>
       </Grid>
       <Grid IsVisible="{Binding Expression.ShowNumbers}">
-        <Label Content="{DynamicResource exps.defaultvalue}" Width="130" HorizontalAlignment="Left"/>
-        <TextBox Margin="140,0,0,4" Text="{Binding Expression.DefaultValue}"/>
+        <Label FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" Content="{DynamicResource exps.defaultvalue}" Width="130" HorizontalAlignment="Left"/>
+        <TextBox FontSize="12" Height="20" Padding="1" Margin="140,5,0,7" Text="{Binding Expression.DefaultValue}"/>
       </Grid>
       <Grid IsVisible="{Binding Expression.IsOptions}">
-        <Label Content="{DynamicResource exps.optionvalues}" Width="130" HorizontalAlignment="Left"/>
-        <TextBox Margin="140,0,0,4" Text="{Binding Expression.OptionValues}"/>
-        <TextBlock Margin="140,24,0,4" Text="{DynamicResource exps.sepbycomma}"/>
+        <Label FontSize="12" Padding="1" Margin="0,5,0,5" Content="{DynamicResource exps.optionvalues}" Width="130" HorizontalAlignment="Left"/>
+        <TextBox Margin="140,5,0,7" Text="{Binding Expression.OptionValues}"/>
+        <TextBlock Margin="145,33,0,7" FontSize="12" Text="{DynamicResource exps.sepbycomma}"/>
       </Grid>
     </StackPanel>
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">

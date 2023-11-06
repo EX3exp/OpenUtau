@@ -5,7 +5,8 @@
         mc:Ignorable="d"
         x:Class="OpenUtau.App.Views.SliderDialog"
         Title="SliderDialog" Height="120" Width="300" WindowStartupLocation="CenterOwner"
-        ExtendClientAreaToDecorationsHint="False">
+        ExtendClientAreaToDecorationsHint="False"
+        Focusable="False">
   <StackPanel VerticalAlignment="Center" Margin="{Binding $parent.WindowDecorationMargin}">
     <StackPanel Orientation="Horizontal" Spacing="10" Margin="10" HorizontalAlignment="Center">
       <Slider Name="Slider" Width="150"
