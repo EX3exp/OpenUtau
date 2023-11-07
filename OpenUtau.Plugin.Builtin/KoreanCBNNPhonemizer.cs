@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using OpenUtau.Api;
-using OpenUtau.Core;
 using OpenUtau.Core.Ustx;
 using OpenUtau.Core.Util;
 
@@ -174,21 +173,21 @@ namespace OpenUtau.Plugin.Builtin {
                 this.note = note;
             }
 
-            private string? findInOto(String phoneme, Note note, bool nullIfNotFound=false){
-                return BaseKoreanPhonemizer.findInOto(singer, phoneme, note, nullIfNotFound);
+            private string? FindInOto(String phoneme, Note note, bool nullIfNotFound=false){
+                return BaseKoreanPhonemizer.FindInOto(singer, phoneme, note, nullIfNotFound);
             }
 
             /// <summary>
-            /// Converts result of Hangeul.variate(Note? prevNeighbour, Note note, Note? nextNeighbour) into CBNN format.
-            /// <br/>Hangeul.variate(Note? prevNeighbour, Note note, Note? nextNeighbour)를 사용한 결과물을 받아 CBNN식으로 변경합니다.
+            /// Converts result of Hangeul.Variate(Note? prevNeighbour, Note note, Note? nextNeighbour) into CBNN format.
+            /// <br/>Hangeul.Variate(Note? prevNeighbour, Note note, Note? nextNeighbour)를 사용한 결과물을 받아 CBNN식으로 변경합니다.
             /// </summary>
             /// <param name="separated">
-            /// result of Hangeul.variate(Note? prevNeighbour, Note note, Note? nextNeighbour).
+            /// result of Hangeul.Variate(Note? prevNeighbour, Note note, Note? nextNeighbour).
             /// </param>
             /// <returns>
             /// Returns CBNN formated result. 
             /// </returns>
-            private Hashtable convertForCBNN(Hashtable separated) {
+            private Hashtable ConvertForCBNN(Hashtable separated) {
                 // VV 음소를 위해 앞의 노트의 변동된 결과까지 반환한다
                 // vc 음소를 위해 뒤의 노트의 변동된 결과까지 반환한다
                 Hashtable cbnnPhonemes;
@@ -241,105 +240,93 @@ namespace OpenUtau.Plugin.Builtin {
                 endSoundVowel = $"{thisVowelTail} -"; // a -
                 endSoundLastConsonant = $"{thisLastConsonant} -"; // ng -
 
-            if (thisLastConsonant.Equals("l")) {
-                // ㄹ받침
-                cVCLength = totalDuration / 2;
-            } 
-            else if (thisLastConsonant.Equals("n")) {
-                // ㄴ받침
-                cVCLength = 170;
-            } 
-            else if (thisLastConsonant.Equals("ng")) {
-                // ㅇ받침
-                cVCLength = 230;
-            } 
-            else if (thisLastConsonant.Equals("m")) {
-                // ㅁ받침
-                cVCLength = 280;
-            } 
-            else if (thisLastConsonant.Equals("k")) {
-                // ㄱ받침
-                cVCLength = totalDuration / 2;
-            } 
-            else if (thisLastConsonant.Equals("t")) {
-                // ㄷ받침
-                cVCLength = totalDuration / 2;
-            } 
-            else if (thisLastConsonant.Equals("p")) {
-                cVCLength = totalDuration / 2;
-            } 
-            else {
-                // 나머지
-                cVCLength = totalDuration / 3;
-            }
-
-            if (thisVowelTail.Equals("u")) {
-                cVCLength += 50; // 모음이 u일때엔 cVC의 발음 길이가 더 길어짐
-                vcLength += 50;
-            }
-
-
-            if (((nextVowelHead.Equals("w")) && (thisVowelTail.Equals("eu"))) || ((nextVowelHead.Equals("w")) && (thisVowelTail.Equals("o"))) || ((nextVowelHead.Equals("w")) && (thisVowelTail.Equals("u")))) {
-                nextFirstConsonant = $"{(string)cbnnPhonemes[10]}"; // VC에 썼을 때 eu bw 대신 eu b를 만들기 위함
-            } 
-            else if (((nextVowelHead.Equals("y") && (thisVowelTail.Equals("i")))) || ((nextVowelHead.Equals("y")) && (thisVowelTail.Equals("eu")))) {
-                nextFirstConsonant = $"{(string)cbnnPhonemes[10]}"; // VC에 썼을 때 i by 대신 i b를 만들기 위함
-            } 
-            else {
-                nextFirstConsonant = $"{(string)cbnnPhonemes[10]}{(string)cbnnPhonemes[11]}"; // 나머지... ex) ny
-            }
-
-            VC = $"{thisVowelTail} {nextFirstConsonant}"; // 다음에 이어질 VV, CVC에게는 해당 없음
-
-
-            
-            // set Voice color & Tone
-
-            frontCV = findInOto(frontCV, note, true);
-
-            if (!thisSuffix.Equals("")) {
-                // 접미사가 있는 발음일 때 / nya2
-                if (!singer.TryGetMappedOto($"{CV}", note.tone, out UOto oto)) {
-                    CV = $"{thisFirstConsonant}{thisVowelHead}{thisVowelTail}";
+                if (thisLastConsonant.Equals("l")) {
+                    // ㄹ받침
+                    cVCLength = totalDuration / 2;
+                } 
+                else if (thisLastConsonant.Equals("n")) {
+                    // ㄴ받침
+                    cVCLength = 170;
+                } 
+                else if (thisLastConsonant.Equals("ng")) {
+                    // ㅇ받침
+                    cVCLength = 230;
+                } 
+                else if (thisLastConsonant.Equals("m")) {
+                    // ㅁ받침
+                    cVCLength = 280;
+                } 
+                else if (thisLastConsonant.Equals("k")) {
+                    // ㄱ받침
+                    cVCLength = totalDuration / 2;
+                } 
+                else if (thisLastConsonant.Equals("t")) {
+                    // ㄷ받침
+                    cVCLength = totalDuration / 2;
+                } 
+                else if (thisLastConsonant.Equals("p")) {
+                    cVCLength = totalDuration / 2;
+                } 
+                else {
+                    // 나머지
+                    cVCLength = totalDuration / 3;
                 }
-            }
-            if (thisSuffix.Equals("")){
-                CV = findInOto(CV, note);
-            }
-            else{
-                CV = findInOto(CV, note, true);
-            }
-            
-            VC = findInOto(VC, note, true);
-            VV = findInOto(VV, note, true);
-            cVC = findInOto(cVC, note);
-            endSoundVowel = findInOto(endSoundVowel, note);
-            endSoundLastConsonant = findInOto(endSoundLastConsonant, note);
 
-            if (CV == null){
-                CV = findInOto(CV_noSuffix, note);
-            }
-            if (frontCV == null) {
-                frontCV = CV;
-            }
-            if (VV == null) {
-                // VV음소 없으면 (ex : a i) 대응하는 CV음소 사용 (ex:  i)
-                VV = CV;
-            }
+                if (thisVowelTail.Equals("u")) {
+                    cVCLength += 50; // 모음이 u일때엔 cVC의 발음 길이가 더 길어짐
+                    vcLength += 50;
+                }
+
+
+                if (((nextVowelHead.Equals("w")) && (thisVowelTail.Equals("eu"))) || ((nextVowelHead.Equals("w")) && (thisVowelTail.Equals("o"))) || ((nextVowelHead.Equals("w")) && (thisVowelTail.Equals("u")))) {
+                    nextFirstConsonant = $"{(string)cbnnPhonemes[10]}"; // VC에 썼을 때 eu bw 대신 eu b를 만들기 위함
+                } 
+                else if (((nextVowelHead.Equals("y") && (thisVowelTail.Equals("i")))) || ((nextVowelHead.Equals("y")) && (thisVowelTail.Equals("eu")))) {
+                    nextFirstConsonant = $"{(string)cbnnPhonemes[10]}"; // VC에 썼을 때 i by 대신 i b를 만들기 위함
+                } 
+                else {
+                    nextFirstConsonant = $"{(string)cbnnPhonemes[10]}{(string)cbnnPhonemes[11]}"; // 나머지... ex) ny
+                }
+
+                VC = $"{thisVowelTail} {nextFirstConsonant}"; // 다음에 이어질 VV, CVC에게는 해당 없음
+
+
+
+                // set Voice color & Tone
+
+                frontCV = FindInOto(frontCV, note, true);
+
+                if (!thisSuffix.Equals("")) {
+                    // 접미사가 있는 발음일 때 / nya2
+                    if (!singer.TryGetMappedOto($"{CV}", note.tone, out UOto oto)) {CV = $"{thisFirstConsonant}{thisVowelHead}{thisVowelTail}";}
+                }
+                
+                CV = thisSuffix.Equals("") ? FindInOto(CV, note) : FindInOto(CV, note, true);
+
+                VC = FindInOto(VC, note, true);
+                VV = FindInOto(VV, note, true);
+                cVC = FindInOto(cVC, note);
+                endSoundVowel = FindInOto(endSoundVowel, note);
+                endSoundLastConsonant = FindInOto(endSoundLastConsonant, note);
+
+                if (CV == null) {CV = FindInOto(CV_noSuffix, note);}
+                if (frontCV == null) {frontCV = CV;}
+                if (VV == null) {VV = CV;} // VV음소 없으면 (ex : a i) 대응하는 CV음소 사용 (ex:  i)
+            
                 return cbnnPhonemes;
             }
 
             /// <summary>
-            /// Converts result of Hangeul.variate(charcter) into CBNN format.
-            /// <br/>Hangeul.variate(character)를 사용한 결과물을 받아 CBNN식으로 변경합니다.
+            /// Converts result of Hangeul.Variate(charcter) into CBNN format.
+            /// <br/>Hangeul.Variate(character)를 사용한 결과물을 받아 CBNN식으로 변경합니다.
             /// </summary>
             /// <param name="separated">
-            /// result of Hangeul.variate(Note? prevNeighbour, Note note, Note? nextNeighbour).
+            /// result of Hangeul.Variate(Note? prevNeighbour, Note note, Note? nextNeighbour).
             /// </param>
             /// <returns>
             /// Returns CBNN formated result. 
             /// </returns>
-            private Hashtable convertForCBNNSingle(Hashtable separated) {
+            private Hashtable ConvertForCBNNSingle(Hashtable separated) {
                 // inputs and returns only one character. (한 글자짜리 인풋만 받음)
                 Hashtable separatedConvertedForCBNN;
 
@@ -379,521 +366,339 @@ namespace OpenUtau.Plugin.Builtin {
             /// <br/>[5]="n", [6]="y", [7]="a", [8]="2", [9]="ng", 
             /// <br/>[10]="", [11]="", [12]="", [13]="", [14]=""} [추 냥 null]
             /// </returns>
-            public Hashtable convertForCBNN(Note? prevNeighbour, Note note, Note? nextNeighbour) {
+            public Hashtable ConvertForCBNN(Note? prevNeighbour, Note note, Note? nextNeighbour) {
                 // Hangeul.separate() 함수 등을 사용해 [초성 중성 종성]으로 분리된 결과물을 CBNN식으로 변경
                 // 이 함수만 불러서 모든 것을 함 (1) [냥]냥
-                Hashtable variated = hangeul.variate(prevNeighbour, note, nextNeighbour);
+                Hashtable variated = hangeul.Variate(prevNeighbour, note, nextNeighbour);
                 thisFirstConsonantType = Enum.Parse<ConsonantType>(FIRST_CONSONANTS[(string)variated[3]][1]);
                 thisLastConsonantType = Enum.Parse<BatchimType>(LAST_CONSONANTS[(string)variated[5]][2]);
                 prevFirstConsonantType = Enum.Parse<ConsonantType>(FIRST_CONSONANTS[(string)variated[0]][1]);
                 prevLastConsonantType = Enum.Parse<BatchimType>(LAST_CONSONANTS[(string)variated[2]][2]);
                 nextFirstConsonantType = Enum.Parse<ConsonantType>(FIRST_CONSONANTS[(string)variated[6]][1]);
                 nextLastConsonantType = Enum.Parse<BatchimType>(LAST_CONSONANTS[(string)variated[8]][2]);
-                return convertForCBNN(variated);
+                return ConvertForCBNN(variated);
             }
 
-            public Hashtable convertForCBNN(Note? prevNeighbour) {
+            public Hashtable ConvertForCBNN(Note? prevNeighbour) {
                 // Hangeul.separate() 함수 등을 사용해 [초성 중성 종성]으로 분리된 결과물을 CBNN식으로 변경
-                // 이 함수만 불러서 모든 것을 함 (1) [냥]냥
-                return convertForCBNNSingle(hangeul.variate(prevNeighbour?.lyric));
-
+                return ConvertForCBNNSingle(hangeul.Variate(prevNeighbour?.lyric));
             }
 
             /// <summary>
             /// true when current Target has Batchim, otherwise false.
             /// </summary>
-            public bool thisHasBatchim(){
-                if (!thisLastConsonant.Equals("")){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool ThisHasBatchim(){
+                return (!thisLastConsonant.Equals("")) ? true : false;
             }
 
             /// <summary>
             /// true when previous Target has Batchim, otherwise false.
             /// </summary>
-            public bool prevHasBatchim(){
-                if (!prevLastConsonant.Equals("")){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool PrevHasBatchim(){
+                return (!prevLastConsonant.Equals("")) ? true : false;
             }
 
             /// <summary>
             /// true when next Target has Batchim, otherwise false.
             /// </summary>
-            public bool nextHasBatchim(){
-                if (!nextLastConsonant.Equals("")){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool NextHasBatchim(){
+                return (!nextLastConsonant.Equals("")) ? true : false;
             }
             /// <summary>
             /// true when current FirstConsonant is Normal(ㄱ, ㄷ, ㅂ, ㅅ, ㅈ), otherwise false.
             /// </summary>
-            public bool thisFirstConsonantIsNormal(){
-                if (thisFirstConsonantType == ConsonantType.NORMAL){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool ThisFirstConsonantIsNormal(){
+                return (thisFirstConsonantType == ConsonantType.NORMAL) ? true : false;
             }
 
             /// <summary>
             /// true when next FirstConsonant is Normal(ㄱ, ㄷ, ㅂ, ㅅ, ㅈ), otherwise false.
             /// </summary>
-            public bool nextFirstConsonantIsNormal(){
-                if (nextFirstConsonantType == ConsonantType.NORMAL){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool NextFirstConsonantIsNormal(){
+                return (nextFirstConsonantType == ConsonantType.NORMAL) ? true : false;
             }
 
             /// <summary>
             /// true when previous FirstConsonant is Normal(ㄱ, ㄷ, ㅂ, ㅅ, ㅈ), otherwise false.
             /// </summary>
-            public bool prevFirstConsonantIsNormal(){
-                if (prevFirstConsonantType == ConsonantType.NORMAL){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool PrevFirstConsonantIsNormal(){
+                return (prevFirstConsonantType == ConsonantType.NORMAL) ? true : false;
             }
 
             /// <summary>
             /// true when current FirstConsonant is Fortis(ㄲ, ㄸ, ㅃ, ㅉ), otherwise false.
             /// </summary>
-            public bool thisFirstConsonantIsFortis(){
-                if (thisFirstConsonantType == ConsonantType.FORTIS){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool ThisFirstConsonantIsFortis(){
+                return (thisFirstConsonantType == ConsonantType.FORTIS) ? true : false;
             }
 
             /// <summary>
             /// true when next FirstConsonant is Fortis(ㄲ, ㄸ, ㅃ, ㅉ), otherwise false.
             /// </summary>
-            public bool nextFirstConsonantIsFortis(){
-                if (nextFirstConsonantType == ConsonantType.FORTIS){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool NextFirstConsonantIsFortis(){
+                return (nextFirstConsonantType == ConsonantType.FORTIS) ? true : false;
             }
 
             /// <summary>
             /// true when previous FirstConsonant is Fortis(ㄲ, ㄸ, ㅃ, ㅉ), otherwise false.
             /// </summary>
-            public bool prevFirstConsonantIsFortis(){
-                if (prevFirstConsonantType == ConsonantType.FORTIS){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool PrevFirstConsonantIsFortis(){
+                return (prevFirstConsonantType == ConsonantType.FORTIS) ? true : false;
             }
 
             /// <summary>
             /// true when current FirstConsonant is Aspirate(ㅋ, ㅌ, ㅍ, ㅊ), otherwise false.
             /// </summary>
-            public bool thisFirstConsonantIsAspirate(){
-                if (thisFirstConsonantType == ConsonantType.ASPIRATE){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool ThisFirstConsonantIsAspirate(){
+                return (thisFirstConsonantType == ConsonantType.ASPIRATE) ? true : false;
             }
             
             /// <summary>
             /// true when next FirstConsonant is Aspirate(ㅋ, ㅌ, ㅍ, ㅊ), otherwise false.
             /// </summary>
-            public bool nextFirstConsonantIsAspirate(){
-                if (nextFirstConsonantType == ConsonantType.ASPIRATE){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool NextFirstConsonantIsAspirate(){
+                return (nextFirstConsonantType == ConsonantType.ASPIRATE) ? true : false;
             }
 
             /// <summary>
             /// true when previous FirstConsonant is Aspirate(ㅋ, ㅌ, ㅍ, ㅊ), otherwise false.
             /// </summary>
-            public bool prevFirstConsonantIsAspirate(){
-                if (prevFirstConsonantType == ConsonantType.ASPIRATE){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool PrevFirstConsonantIsAspirate(){
+                return (prevFirstConsonantType == ConsonantType.ASPIRATE) ? true : false;
             }
             /// <summary>
             /// true when current FirstConsonant is Fricative(ㅆ), otherwise false.
             /// </summary>
-            public bool thisFirstConsonantIsFricative(){
-                if (thisFirstConsonantType == ConsonantType.FRICATIVE){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool ThisFirstConsonantIsFricative(){
+                return (thisFirstConsonantType == ConsonantType.FRICATIVE) ? true : false;
             }
 
             /// <summary>
             /// true when next FirstConsonant is Fricative(ㅆ), otherwise false.
             /// </summary>
-            public bool nextFirstConsonantIsFricative(){
-                if (nextFirstConsonantType == ConsonantType.FRICATIVE){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool NextFirstConsonantIsFricative(){
+                return (nextFirstConsonantType == ConsonantType.FRICATIVE) ? true : false;
             }
 
             /// <summary>
             /// true when previous FirstConsonant is Fricative(ㅆ), otherwise false.
             /// </summary>
-            public bool prevFirstConsonantIsFricative(){
-                if (prevFirstConsonantType == ConsonantType.FRICATIVE){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool PrevFirstConsonantIsFricative(){
+                return (prevFirstConsonantType == ConsonantType.FRICATIVE) ? true : false;
             }
 
             /// <summary>
             /// true when current FirstConsonant is ㅇ, otherwise false.
             /// </summary>
-            public bool thisFirstConsonantIsNone(){
-                if (thisFirstConsonantType == ConsonantType.NOCONSONANT){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool ThisFirstConsonantIsNone(){
+                return (thisFirstConsonantType == ConsonantType.NOCONSONANT) ? true : false;
             }
 
             /// <summary>
             /// true when next FirstConsonant is ㅇ, otherwise false.
             /// </summary>
-            public bool nextFirstConsonantIsNone(){
-                if (nextFirstConsonantType == ConsonantType.NOCONSONANT){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool NextFirstConsonantIsNone(){
+                return (nextFirstConsonantType == ConsonantType.NOCONSONANT) ? true : false;
             }
 
             /// <summary>
             /// true when previous FirstConsonant is ㅇ, otherwise false.
             /// </summary>
-            public bool prevFirstConsonantIsNone(){
-                if (prevFirstConsonantType == ConsonantType.NOCONSONANT){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool PrevFirstConsonantIsNone(){
+                return (prevFirstConsonantType == ConsonantType.NOCONSONANT) ? true : false;
             }
 
             /// <summary>
             /// true when current FirstConsonant is Nasal(ㄴ, ㅇ, ㅁ), otherwise false.
             /// </summary>
-            public bool thisFirstConsonantIsNasal(){
-                if (thisFirstConsonantType == ConsonantType.NASAL){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool ThisFirstConsonantIsNasal(){
+                return (thisFirstConsonantType == ConsonantType.NASAL) ? true : false;
             }
 
             /// <summary>
             /// true when next FirstConsonant is Nasal(ㄴ, ㅇ, ㅁ), otherwise false.
             /// </summary>
-            public bool nextFirstConsonantIsNasal(){
-                if (nextFirstConsonantType == ConsonantType.NASAL){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool NextFirstConsonantIsNasal(){
+                return (nextFirstConsonantType == ConsonantType.NASAL) ? true : false;
             }
 
             /// <summary>
             /// true when previous FirstConsonant is Nasal(ㄴ, ㅇ, ㅁ), otherwise false.
             /// </summary>
-            public bool prevFirstConsonantIsNasal(){
-                if (prevFirstConsonantType == ConsonantType.NASAL){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool PrevFirstConsonantIsNasal(){
+                return (prevFirstConsonantType == ConsonantType.NASAL) ? true : false;
             }
 
             /// <summary>
             /// true when current FirstConsonant is Liquid(ㄹ), otherwise false.
             /// </summary>
-            public bool thisFirstConsonantIsLiquid(){
-                if (thisFirstConsonantType == ConsonantType.LIQUID){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool ThisFirstConsonantIsLiquid(){
+                return (thisFirstConsonantType == ConsonantType.LIQUID) ? true : false;
             }
 
             /// <summary>
             /// true when next FirstConsonant is Liquid(ㄹ), otherwise false.
             /// </summary>
-            public bool nextFirstConsonantIsLiquid(){
-                if (nextFirstConsonantType == ConsonantType.LIQUID){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool NextFirstConsonantIsLiquid(){
+                return (nextFirstConsonantType == ConsonantType.LIQUID) ? true : false;
             }
 
             /// <summary>
             /// true when previous FirstConsonant is Liquid(ㄹ), otherwise false.
             /// </summary>
-            public bool prevFirstConsonantIsLiquid(){
-                if (prevFirstConsonantType == ConsonantType.LIQUID){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool PrevFirstConsonantIsLiquid(){
+                return (prevFirstConsonantType == ConsonantType.LIQUID) ? true : false;
             }
 
             /// <summary>
             /// true when current FirstConsonant is ㅎ, otherwise false.
             /// </summary>
-            public bool thisFirstConsonantIsH(){
-                if (thisFirstConsonantType == ConsonantType.H){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool ThisFirstConsonantIsH(){
+                return (thisFirstConsonantType == ConsonantType.H) ? true : false;
             }
 
             /// <summary>
             /// true when next FirstConsonant is ㅎ, otherwise false.
             /// </summary>
-            public bool nextFirstConsonantIsH(){
-                if (thisFirstConsonantType == ConsonantType.H){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool NextFirstConsonantIsH(){
+                return (thisFirstConsonantType == ConsonantType.H) ? true : false;
             }
 
             /// <summary>
             /// true when previous FirstConsonant is ㅎ, otherwise false.
             /// </summary>
-            public bool prevFirstConsonantIsH(){
-                if (prevFirstConsonantType == ConsonantType.H){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool PrevFirstConsonantIsH(){
+                return (prevFirstConsonantType == ConsonantType.H) ? true : false;
             }
 
             /// <summary>
             /// true when current Target is Plain vowel(ㅏ, ㅣ, ㅜ, ㅔ, ㅗ, ㅡ, ㅓ), otherwise false.
             /// </summary>
-            public bool thisIsPlainVowel(){
-                if (thisFirstConsonantIsNone() && thisVowelHead.Equals("") ){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool ThisIsPlainVowel(){
+                return (ThisFirstConsonantIsNone() && thisVowelHead.Equals("")) ? true : false;
             }
 
             /// <summary>
             /// true when next Target is Plain vowel(ㅏ, ㅣ, ㅜ, ㅔ, ㅗ, ㅡ, ㅓ), otherwise false.
             /// </summary>
-            public bool nextIsPlainVowel(){
-                if (nextFirstConsonantIsNone() && nextVowelHead.Equals("")){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool NextIsPlainVowel(){
+                return (NextFirstConsonantIsNone() && nextVowelHead.Equals("")) ? true : false;
             }
 
             /// <summary>
             /// true when previous Target is Plain vowel(ㅏ, ㅣ, ㅜ, ㅔ, ㅗ, ㅡ, ㅓ), otherwise false.
             /// </summary>
-            public bool prevIsPlainVowel(){
-                if (prevFirstConsonantIsNone() && prevVowelHead.Equals("")){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool PrevIsPlainVowel(){
+                return (PrevFirstConsonantIsNone() && prevVowelHead.Equals("")) ? true : false;
             }
 
             /// <summary>
             /// true when current LastConsonant is Nasal(ㄴ, ㅇ, ㅁ), otherwise false.
             /// </summary>
-            public bool thisLastConsonantIsNasal(){
-                if (thisLastConsonantType == BatchimType.NASAL_END || thisLastConsonantType == BatchimType.NG_END){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool ThisLastConsonantIsNasal(){
+                return (thisLastConsonantType == BatchimType.NASAL_END || thisLastConsonantType == BatchimType.NG_END) ? true : false;
             }
 
             /// <summary>
             /// true when next LastConsonant is Nasal(ㄴ, ㅇ, ㅁ), otherwise false.
             /// </summary>
-            public bool nextLastConsonantIsNasal(){
-                if (nextLastConsonantType == BatchimType.NASAL_END || nextLastConsonantType == BatchimType.NG_END){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool NextLastConsonantIsNasal(){
+                return (nextLastConsonantType == BatchimType.NASAL_END || nextLastConsonantType == BatchimType.NG_END) ? true : false;
             }
 
             /// <summary>
             /// true when previous LastConsonant is Nasal(ㄴ, ㅇ, ㅁ), otherwise false.
             /// </summary>
-            public bool prevLastConsonantIsNasal(){
-                if (prevLastConsonantType == BatchimType.NASAL_END || prevLastConsonantType == BatchimType.NG_END){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool PrevLastConsonantIsNasal(){
+                return (prevLastConsonantType == BatchimType.NASAL_END || prevLastConsonantType == BatchimType.NG_END) ? true : false;
             }
 
             /// <summary>
             /// true when current LastConsonant is Liquid(ㄹ), otherwise false.
             /// </summary>
-            public bool thisLastConsonantIsLiquid(){
-                if (thisLastConsonantType == BatchimType.LIQUID_END){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool ThisLastConsonantIsLiquid(){
+                return (thisLastConsonantType == BatchimType.LIQUID_END) ? true : false;
             }
 
             /// <summary>
             /// true when next LastConsonant is Liquid(ㄹ), otherwise false.
             /// </summary>
-            public bool nextLastConsonantIsLiquid(){
-                if (nextLastConsonantType == BatchimType.LIQUID_END){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool NextLastConsonantIsLiquid(){
+                return (nextLastConsonantType == BatchimType.LIQUID_END) ? true : false;
             }
 
             /// <summary>
             /// true when previous LastConsonant is Liquid.(ㄹ), otherwise false.
             /// </summary>
-            public bool prevLastConsonantIsLiquid(){
-                if (prevLastConsonantType == BatchimType.LIQUID_END){
-                    return true;
-                }
-                else{
-                    return false;
-                }
+            public bool PrevLastConsonantIsLiquid(){
+                return (prevLastConsonantType == BatchimType.LIQUID_END) ? true : false;
             }
 
             /// <summary>
             /// true when previous FirstConsonant is Aspirate or Fortis or Fricative (ㅋ, ㅌ, ㅍ, ㅊ, ㄲ, ㄸ, ㅃ, ㅆ, ㅉ), otherwise false.
             /// </summary>
-            public bool prevFirstConsonantNeedsPause(){
-                return (prevFirstConsonantIsAspirate() || prevFirstConsonantIsFortis() || prevFirstConsonantIsFricative());
+            public bool PrevFirstConsonantNeedsPause(){
+                return (PrevFirstConsonantIsAspirate() || PrevFirstConsonantIsFortis() || PrevFirstConsonantIsFricative());
             }
 
             /// <summary>
             /// true when current FirstConsonant is Aspirate or Fortis or Fricative (ㅋ, ㅌ, ㅍ, ㅊ, ㄲ, ㄸ, ㅃ, ㅆ, ㅉ), otherwise false.
             /// </summary>
-            public bool thisFirstConsonantNeedsPause(){
-                return (thisFirstConsonantIsAspirate() || thisFirstConsonantIsFortis() || thisFirstConsonantIsFricative());
+            public bool ThisFirstConsonantNeedsPause(){
+                return (ThisFirstConsonantIsAspirate() || ThisFirstConsonantIsFortis() || ThisFirstConsonantIsFricative());
             }
 
             /// <summary>
             /// true when next FirstConsonant is Aspirate or Fortis or Fricative (ㅋ, ㅌ, ㅍ, ㅊ, ㄲ, ㄸ, ㅃ, ㅆ, ㅉ), otherwise false.
             /// </summary>
-            public bool nextFirstConsonantNeedsPause(){
-                return (nextFirstConsonantIsAspirate() || nextFirstConsonantIsFortis() || nextFirstConsonantIsFricative());
+            public bool NextFirstConsonantNeedsPause(){
+                return (NextFirstConsonantIsAspirate() || NextFirstConsonantIsFortis() || NextFirstConsonantIsFricative());
             }
 
             /// <summary>
             /// true when current LastConsonant is Nasal or Liquid (ㄴ, ㅇ, ㅁ, ㄹ), otherwise false.
             /// </summary>
-            public bool thisLastConsonantIsNasalOrLiquid(){
-                return (thisLastConsonantIsNasal() || thisLastConsonantIsLiquid());
+            public bool ThisLastConsonantIsNasalOrLiquid(){
+                return (ThisLastConsonantIsNasal() || ThisLastConsonantIsLiquid());
             }
 
             /// <summary>
             /// true when next LastConsonant is Nasal or Liquid (ㄴ, ㅇ, ㅁ, ㄹ), otherwise false.
             /// </summary>
-            public bool nextLastConsonantIsNasalOrLiquid(){
-                return (nextLastConsonantIsNasal() || nextLastConsonantIsLiquid());
+            public bool NextLastConsonantIsNasalOrLiquid(){
+                return (NextLastConsonantIsNasal() || NextLastConsonantIsLiquid());
             }
 
             /// <summary>
             /// true when previous LastConsonant is Nasal or Liquid (ㄴ, ㅇ, ㅁ, ㄹ), otherwise false.
             /// </summary>
-            public bool prevLastConsonantIsNasalOrLiquid(){
-                return (prevLastConsonantIsNasal() || prevLastConsonantIsLiquid());
+            public bool PrevLastConsonantIsNasalOrLiquid(){
+                return (PrevLastConsonantIsNasal() || PrevLastConsonantIsLiquid());
             }
 
             /// <summary>
             /// true when current Target needs VV for Vowel Phoneme(Example: a i, u eo...), otherwise false.
             /// </summary>
-            public bool thisVowelNeedsVV(){
-                return ((! prevHasBatchim()) && thisIsPlainVowel());
+            public bool ThisVowelNeedsVV(){
+                return ((! PrevHasBatchim()) && ThisIsPlainVowel());
             }
 
             /// <summary>
             /// true when current Target needs CV for Vowel Phoneme(Example: a, ya...), otherwise false.
             /// </summary>
-            public bool thisVowelNeedsCV(){
-                return ((thisFirstConsonantIsNone() && prevHasBatchim()) || (prevHasBatchim() && thisIsPlainVowel()));
+            public bool ThisVowelNeedsCV(){
+                return ((ThisFirstConsonantIsNone() && PrevHasBatchim()) || (PrevHasBatchim() && ThisIsPlainVowel()));
             }
 
             /// <summary>
             /// true when current Target needs frontCV for CV Phoneme(Example: - ka), otherwise false.
             /// </summary>
-            public bool thisNeedsFrontCV(){
-                return (prevHasBatchim() && thisFirstConsonantNeedsPause());
+            public bool ThisNeedsFrontCV(){
+                return (PrevHasBatchim() && ThisFirstConsonantNeedsPause());
             }
         }
 
-        public override Result convertPhonemes(Note[] notes, Note? prev, Note? next, Note? prevNeighbour, Note? nextNeighbour, Note[] prevNeighbours) {
+        public override Result ConvertPhonemes(Note[] notes, Note? prev, Note? next, Note? prevNeighbour, Note? nextNeighbour, Note[] prevNeighbours) {
             Hashtable cbnnPhonemes;
 
             Note note = notes[0];
@@ -912,250 +717,140 @@ namespace OpenUtau.Plugin.Builtin {
 
             try{
                 // change lyric to CBNN phonemes, with phoneme variation.
-                cbnnPhonemes = CBNN.convertForCBNN(prevNote, thisNote, nextNote);
+                cbnnPhonemes = CBNN.ConvertForCBNN(prevNote, thisNote, nextNote);
             }
             catch {
-                return generateResult(lyric);
+                return GenerateResult(lyric);
             }
                 
 
             // Return phonemes
             if ((prevNeighbour == null) && (nextNeighbour == null)) { // No neighbours / 냥
-                if (! CBNN.thisHasBatchim()) { // No batchim / 냐
-                    return generateResult(CBNN.frontCV, CBNN.endSoundVowel, totalDuration, vcLengthShort);
-                } 
-                else { // batchim
-                    return generateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 6);
-                }
+                return (! CBNN.ThisHasBatchim()) ? GenerateResult(CBNN.frontCV, CBNN.endSoundVowel, totalDuration, vcLengthShort) : GenerateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 6);
             } 
 
             else if ((prevNeighbour != null) && (nextNeighbour == null)) { // Prev neighbour only / 냥[냥]
-                if (! CBNN.thisHasBatchim()) { // No Batchim / 냐[냐]
-                    if (CBNN.thisVowelNeedsVV()) {// when comes Vowel and there's no previous batchim / 냐[아]
-                        return generateResult(CBNN.VV, CBNN.endSoundVowel, totalDuration, CBNN.vcLengthShort, 8); 
+                if (! CBNN.ThisHasBatchim()) { // No Batchim / 냐[냐]
+                    if (CBNN.ThisVowelNeedsVV()) {// when comes Vowel and there's no previous batchim / 냐[아]
+                        return GenerateResult(CBNN.VV, CBNN.endSoundVowel, totalDuration, CBNN.vcLengthShort, 8); 
                     } 
-                    else if (CBNN.thisVowelNeedsCV()) {// when came Vowel behind Batchim / 냥[아]
-                        return generateResult(CBNN.CV, CBNN.endSoundVowel, totalDuration, CBNN.vcLengthShort, 8);
+                    else if (CBNN.ThisVowelNeedsCV()) {// when came Vowel behind Batchim / 냥[아]
+                        return GenerateResult(CBNN.CV, CBNN.endSoundVowel, totalDuration, CBNN.vcLengthShort, 8);
                     } 
                     else {// Not vowel / 냐[냐]
-                        if (CBNN.thisNeedsFrontCV()) {// - CV
-                            return generateResult(CBNN.frontCV, CBNN.endSoundVowel, totalDuration, CBNN.vcLengthShort, 8);
-                        } else {// -CV 
-                            return generateResult(CBNN.CV, CBNN.endSoundVowel, totalDuration, CBNN.vcLengthShort, 8);
-                        }
+                        return CBNN.ThisNeedsFrontCV() ? GenerateResult(CBNN.frontCV, CBNN.endSoundVowel, totalDuration, CBNN.vcLengthShort, 8) : GenerateResult(CBNN.CV, CBNN.endSoundVowel, totalDuration, CBNN.vcLengthShort, 8);
                     }
                 } 
-                else if (CBNN.thisLastConsonantIsNasalOrLiquid()) {// Batchim - ㄴㄹㅇㅁ  / 냐[냥]
-                    if (CBNN.thisVowelNeedsVV()) {// when comes Vowel and there's no previous batchim / 냐[앙]
-                        return generateResult(CBNN.VV, CBNN.cVC, totalDuration, CBNN.vcLength, 6);
+                else if (CBNN.ThisLastConsonantIsNasalOrLiquid()) {// Batchim - ㄴㄹㅇㅁ  / 냐[냥]
+                    if (CBNN.ThisVowelNeedsVV()) {// when comes Vowel and there's no previous batchim / 냐[앙]
+                        return GenerateResult(CBNN.VV, CBNN.cVC, totalDuration, CBNN.vcLength, 6);
                     } 
-                    else if (CBNN.thisVowelNeedsCV()) {// when came Vowel behind Batchim / 냥[앙]
-                        return generateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.vcLength, 6);
+                    else if (CBNN.ThisVowelNeedsCV()) {// when came Vowel behind Batchim / 냥[앙]
+                        return GenerateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.vcLength, 6);
                     } 
                     else {// batchim / 냐[냑]
-                        if (CBNN.thisNeedsFrontCV()) {// - CV
-                            return generateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.vcLength, 3);
-                        } 
-                        else {// 이외 음소는 - CV로 이음
-                            return generateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.vcLength, 3);
-                        }
+                        return CBNN.ThisNeedsFrontCV() ? GenerateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.vcLength, 3) : GenerateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.vcLength, 3);
                     }
                 } 
                 else {// 유음받침 아니고 비음받침도 아님
-                    return generateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.cVCLength, 6);
+                    return GenerateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.cVCLength, 6);
                 }
             } 
 
             else if ((prevNeighbour == null) && (nextNeighbour != null)) {// next lyric is Hangeul
-                if (hanguel.isHangeul(nextNeighbour?.lyric)) {// Next neighbour only  / null [아] 아
-                    if (!CBNN.thisHasBatchim()) { // No batchim / null [냐] 냥
-                        if (CBNN.VC != null) {// there should be No VC phoneme for next VV phoneme
-                            return generateResult(CBNN.frontCV, CBNN.VC, totalDuration, CBNN.vcLength, 3);
-                        } 
-                        else{
-                            return generateResult(CBNN.frontCV);
-                        } 
+                if (hanguel.IsHangeul(nextNeighbour?.lyric)) {// Next neighbour only  / null [아] 아
+                    if (!CBNN.ThisHasBatchim()) { // No batchim / null [냐] 냥
+                        return CBNN.VC != null ? GenerateResult(CBNN.frontCV, CBNN.VC, totalDuration, CBNN.vcLength, 3) : GenerateResult(CBNN.frontCV);
                     } 
-                    else if (CBNN.thisLastConsonantIsNasalOrLiquid()) {// Batchim - ㄴㄹㅇㅁ / null [냥]냐
-                        if (CBNN.nextFirstConsonantNeedsPause()) {
-                            return generateResult(CBNN.frontCV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
-                        } 
-                        else {
-                            if (CBNN.nextFirstConsonantIsNone()){
-                                return generateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 6);
-                            }
-                            else{
-                                return generateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
-                            } 
-                        }
+                    else if (CBNN.ThisLastConsonantIsNasalOrLiquid()) {// Batchim - ㄴㄹㅇㅁ / null [냥]냐
+                        return CBNN.NextFirstConsonantNeedsPause() ? 
+                        GenerateResult(CBNN.frontCV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2)
+                        : (CBNN.NextFirstConsonantIsNone() ? GenerateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 6) : GenerateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2));
                     } 
                     else {// 앞이웃만 없고 받침 있음 - 나머지 / [꺅]꺄
-                        return generateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
+                        return GenerateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
                     }
                 } 
                 else { // 뒤에 한글 안옴
-                    if (! CBNN.thisHasBatchim()) {
-                        return generateResult(CBNN.frontCV);
-                    } 
-                    else {
-                        return generateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 3);
-                    }
+                    return (! CBNN.ThisHasBatchim()) ? GenerateResult(CBNN.frontCV) : GenerateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 3);
                 } 
             } 
 
             else if ((prevNeighbour != null) && (nextNeighbour != null)) {// 둘다 이웃 있음
-                if (hanguel.isHangeul(nextNeighbour?.lyric)) {// 뒤의 이웃이 한국어임
-                    if (! CBNN.thisHasBatchim()) { // 둘다 이웃 있고 받침 없음 / 냥[냐]냥
-                        if (CBNN.thisVowelNeedsVV()) {
-                            if (CBNN.VC != null) {
-                                return generateResult(CBNN.VV, CBNN.VC, totalDuration, CBNN.vcLength);
-                            }
-                            else{
-                                return generateResult(CBNN.VV);
-                            }
+                if (hanguel.IsHangeul(nextNeighbour?.lyric)) {// 뒤의 이웃이 한국어임
+                    if (! CBNN.ThisHasBatchim()) { // 둘다 이웃 있고 받침 없음 / 냥[냐]냥
+                        if (CBNN.ThisVowelNeedsVV()) {
+                            return CBNN.VC != null ? GenerateResult(CBNN.VV, CBNN.VC, totalDuration, CBNN.vcLength) : GenerateResult(CBNN.VV);
                         } 
-                        else if (CBNN.thisVowelNeedsCV()) {
-                            if (CBNN.VC != null) {
-                                return generateResult(CBNN.CV, CBNN.VC, totalDuration, CBNN.vcLength);
-                            } 
-                            else {// No VC
-                                return generateResult(CBNN.CV);
-                            } 
+                        else if (CBNN.ThisVowelNeedsCV()) {
+                            return CBNN.VC != null ? GenerateResult(CBNN.CV, CBNN.VC, totalDuration, CBNN.vcLength) : GenerateResult(CBNN.CV);
                         }
                         else {
-                            if (CBNN.nextIsPlainVowel()) {
-                                if (CBNN.thisNeedsFrontCV()) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
-                                    return generateResult(CBNN.frontCV);
-                                } 
-                                else {
-                                    return generateResult(CBNN.CV);
-                                }
+                            if (CBNN.NextIsPlainVowel()) {
+                                return CBNN.ThisNeedsFrontCV() ? GenerateResult(CBNN.frontCV) : GenerateResult(CBNN.CV);
                             } 
                             else {
-                                if (CBNN.thisNeedsFrontCV()) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
-                                    if (CBNN.VC != null) {
-                                        return generateResult(CBNN.frontCV, CBNN.VC, totalDuration, CBNN.vcLengthShort);
-                                    } 
-                                    else {
-                                        return generateResult(CBNN.frontCV);
-                                    }
-                                } 
-                                else {// 나머지 / CV로 시작
-                                    if (CBNN.VC != null) {
-                                        return generateResult(CBNN.CV, CBNN.VC, totalDuration, CBNN.vcLengthShort);
-                                    } 
-                                    else {
-                                        return generateResult(CBNN.CV);
-                                    }
-                                }
+                                return CBNN.ThisNeedsFrontCV() ? 
+                                (CBNN.VC != null ? GenerateResult(CBNN.frontCV, CBNN.VC, totalDuration, CBNN.vcLengthShort) : GenerateResult(CBNN.frontCV)) 
+                                : (CBNN.VC != null ? GenerateResult(CBNN.CV, CBNN.VC, totalDuration, CBNN.vcLengthShort) : GenerateResult(CBNN.CV));
                             }
                         }
                     } 
-                    else if (CBNN.thisHasBatchim() && (CBNN.nextFirstConsonantIsFricative() || CBNN.thisLastConsonantIsNasalOrLiquid() || CBNN.nextFirstConsonantIsNone())) {// 둘다 이웃 있고 받침 있음 - ㄴㄹㅇㅁ + 뒤에 오는 음소가 ㅆ인 아무런 받침 / 냐[냥]냐
-                        if (CBNN.nextFirstConsonantIsNormal() || CBNN.nextFirstConsonantIsNasal() || CBNN.nextFirstConsonantIsNone() || CBNN.nextFirstConsonantIsLiquid()) {
+                    else if (CBNN.ThisHasBatchim() && (CBNN.NextFirstConsonantIsFricative() || CBNN.ThisLastConsonantIsNasalOrLiquid() || CBNN.NextFirstConsonantIsNone())) {// 둘다 이웃 있고 받침 있음 - ㄴㄹㅇㅁ + 뒤에 오는 음소가 ㅆ인 아무런 받침 / 냐[냥]냐
+                        if (CBNN.NextFirstConsonantIsNormal() || CBNN.NextFirstConsonantIsNasal() || CBNN.NextFirstConsonantIsNone() || CBNN.NextFirstConsonantIsLiquid()) {
                             // 다음 음소가 ㄱㄷㅂㅅㅈㄴㅇㄹㅇ 임
-                            if (CBNN.thisVowelNeedsVV()) {
-                                return generateResult(CBNN.VV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
+                            if (CBNN.ThisVowelNeedsVV()) {
+                                return GenerateResult(CBNN.VV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
                             } 
                             else {// 앞에 받침 있고 받침 오는 CV / 냥[냥]냐 
-                                if (CBNN.thisNeedsFrontCV()) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함
-                                    return generateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
-                                } 
-                                else {
-                                    if (CBNN.nextFirstConsonantIsNone()){
-                                        return generateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.cVCLength, 6);
-                                    }
-                                    else{
-                                        return generateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
-                                    } 
-                                }
+                                return CBNN.ThisNeedsFrontCV() ? 
+                                GenerateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2) 
+                                : (CBNN.NextFirstConsonantIsNone() ? GenerateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.cVCLength, 6) : GenerateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2));
                             }
                         } 
                         else {// 다음 음소가 ㄴㅇㄹㅁ 제외 나머지임
-                            if (CBNN.thisVowelNeedsVV()) {// 앞에 받침 없는 모음 / 냐[앙]꺅
-                                return generateResult(CBNN.VV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
-                            } 
-                            else {// 앞에 받침 있고 받침 있는 CVC / 냥[냥]꺅
-                                if (CBNN.thisNeedsFrontCV()) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
-                                    return generateResult(CBNN.frontCV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
-                                } 
-                                else {
-                                    return generateResult(CBNN.CV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
-                                }
-                            }
+                            return CBNN.ThisVowelNeedsVV() ?
+                            GenerateResult(CBNN.VV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2) 
+                            : (CBNN.ThisNeedsFrontCV() ? GenerateResult(CBNN.frontCV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2) : GenerateResult(CBNN.CV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2));
                         }
                     } 
                     else {// 둘다 이웃 있고 받침 있음 - 나머지 / 꺅[꺅]꺄
-                        if (CBNN.thisVowelNeedsVV()) {// 앞에 받침 없는 모음 / 냐[악]꺅
-                            return generateResult(CBNN.VV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
-                        } 
-                        else {// 앞에 받침이 온 CVC 음소(받침 있음) / 냥[악]꺅  냥[먁]꺅
-                            if (CBNN.thisNeedsFrontCV()) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
-                                return generateResult(CBNN.frontCV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
-                            } 
-                            else {// 나머지
-                                return generateResult(CBNN.CV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2);
-                            }
-                        }
+                        return CBNN.ThisVowelNeedsVV() ? 
+                        GenerateResult(CBNN.VV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2)
+                        : (CBNN.ThisNeedsFrontCV() ? GenerateResult(CBNN.frontCV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2) : GenerateResult(CBNN.CV, CBNN.cVC, CBNN.endSoundLastConsonant, totalDuration, CBNN.cVCLength, 2, 2));
                     }
                 } 
                 else if ((bool)(nextNeighbour?.lyric.Equals("-")) || (bool)(nextNeighbour?.lyric.Equals("R"))) {// 둘다 이웃 있고 뒤에 -가 옴
-                    if (! CBNN.thisHasBatchim()) { // 둘다 이웃 있고 받침 없음 / 냥[냐]냥
-                        if (CBNN.thisVowelNeedsVV()) {// 앞에 받침 없는 모음 / 냐[아]냐
-                            return generateResult(CBNN.VV);
-                        } 
-                        else if (CBNN.thisNeedsFrontCV()){
-                            return generateResult(CBNN.frontCV);
-                        }
-                        else {// 앞에 받침 있는 모음 + 모음 아님 / 냐[냐]냐  냥[아]냐
-                            return generateResult(CBNN.CV);
-                        }
+                    if (! CBNN.ThisHasBatchim()) { // 둘다 이웃 있고 받침 없음 / 냥[냐]냥
+                        if (CBNN.ThisVowelNeedsVV()) {return GenerateResult(CBNN.VV);} 
+                        else if (CBNN.ThisNeedsFrontCV()) {return GenerateResult(CBNN.frontCV);}
+                        else {return GenerateResult(CBNN.CV);}
                     } 
                     else {
-                        if (CBNN.nextFirstConsonantIsLiquid() || CBNN.nextFirstConsonantIsNasal() || CBNN.nextFirstConsonantIsNone()) {// 다음 음소가 ㄴㅇㄹㅇ 임
-                            if (CBNN.thisVowelNeedsVV()) {// 앞에 받침 없는 모음 / 냐[악]꺅
-                            return generateResult(CBNN.VV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
-                        } 
+                        if (CBNN.NextFirstConsonantIsLiquid() || CBNN.NextFirstConsonantIsNasal() || CBNN.NextFirstConsonantIsNone()) {// 다음 음소가 ㄴㅇㄹㅇ 임
+                            if (CBNN.ThisVowelNeedsVV()) {return GenerateResult(CBNN.VV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);} 
                         else {// 앞에 받침이 온 CVC 음소(받침 있음) / 냥[악]꺅  냥[먁]꺅
-                            if (CBNN.thisNeedsFrontCV()) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
-                                return generateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
-                            } 
-                            else {
-                                return generateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
-                            }
+                            return CBNN.ThisNeedsFrontCV() ? GenerateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2) : GenerateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
                         }
                     } 
                         else {// 다음 음소가 ㄴㅇㄹㅁ 제외 나머지임
-                            if (CBNN.thisVowelNeedsVV()) {// 앞에 받침 없는 모음 / 냐[앙]꺅
-                                return generateResult(CBNN.VV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
-                            } 
-                            else {// 앞에 받침 있고 받침 있는 CVC / 냥[냥]꺅
-                                if (CBNN.thisNeedsFrontCV()) {// ㄲㄸㅃㅆㅉ ㅋㅌㅍ / - 로 시작해야 함 
-                                    return generateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
-                                } 
-                                else {
-                                    return generateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2);
-                                }
-                            }
+                            return CBNN.ThisVowelNeedsVV() ?
+                            GenerateResult(CBNN.VV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2)
+                            : (CBNN.ThisNeedsFrontCV() ? GenerateResult(CBNN.frontCV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2) : GenerateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.cVCLength, 2));
                         }
                     } 
                 } 
                 else {
-                    if (! CBNN.thisHasBatchim()) { // 둘다 이웃 있고 받침 없음 / 냥[냐]-
-                        return generateResult(CBNN.CV);
-                    } 
-                    else {
-                        return generateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.cVCLength, 3);
-                    }
+                    return (! CBNN.ThisHasBatchim()) ? GenerateResult(CBNN.CV) : GenerateResult(CBNN.CV, CBNN.cVC, totalDuration, CBNN.cVCLength, 3);
                 }
             } 
             else {
-                return generateResult(CBNN.CV);
+                return GenerateResult(CBNN.CV);
             }
         }
 
 
-        public override Result generateEndSound(Note[] notes, Note? prev, Note? next, Note? prevNeighbour, Note? nextNeighbour, Note[] prevNeighbours) {
+        public override Result GenerateEndSound(Note[] notes, Note? prev, Note? next, Note? prevNeighbour, Note? nextNeighbour, Note[] prevNeighbours) {
             Hashtable cbnnPhonemes;
 
             Note note = notes[0];
@@ -1175,8 +870,8 @@ namespace OpenUtau.Plugin.Builtin {
             string prevLyric = prevNote?.lyric;
 
             if (thisNote.lyric.Equals("-")) {
-                if (hanguel.isHangeul(prevLyric)) {
-                    cbnnPhonemes = CBNN.convertForCBNN(prevNote);
+                if (hanguel.IsHangeul(prevLyric)) {
+                    cbnnPhonemes = CBNN.ConvertForCBNN(prevNote);
 
                     string prevVowelTail = (string)cbnnPhonemes[2]; // V이전 노트의 모음 음소 
                     string prevLastConsonant = (string)cbnnPhonemes[4]; // 이전 노트의 받침 음소
@@ -1189,10 +884,10 @@ namespace OpenUtau.Plugin.Builtin {
                     }
 
                 }
-                return generateResult(phonemeToReturn);
+                return GenerateResult(phonemeToReturn);
             } else if (thisNote.lyric.Equals("R")) {
-                if (hanguel.isHangeul(prevLyric)) {
-                    cbnnPhonemes = CBNN.convertForCBNN(prevNote);
+                if (hanguel.IsHangeul(prevLyric)) {
+                    cbnnPhonemes = CBNN.ConvertForCBNN(prevNote);
 
                     string prevVowelTail = (string)cbnnPhonemes[2]; // V이전 노트의 모음 음소 
                     string prevLastConsonant = (string)cbnnPhonemes[4]; // 이전 노트의 받침 음소
@@ -1206,10 +901,10 @@ namespace OpenUtau.Plugin.Builtin {
                     }
 
                 }
-                return generateResult(phonemeToReturn);
+                return GenerateResult(phonemeToReturn);
             } 
             else {
-                return generateResult(phonemeToReturn);
+                return GenerateResult(phonemeToReturn);
             }
         }
     }
