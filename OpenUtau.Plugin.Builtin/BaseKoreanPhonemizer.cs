@@ -26,19 +26,21 @@ namespace OpenUtau.Plugin.Builtin {
             string color = string.Empty;
             int toneShift = 0;
             int? alt = null;
-            if (phoneme.Equals("")) {
-                return phoneme;
-            }
+            if (phoneme.Equals("")) {return phoneme;}
 
             if (singer.TryGetMappedOto(phoneme + alt, note.tone + toneShift, color, out var otoAlt)) {
                 phonemeToReturn = otoAlt.Alias;
-            } else if (singer.TryGetMappedOto(phoneme, note.tone + toneShift, color, out var oto)) {
+            } 
+            else if (singer.TryGetMappedOto(phoneme, note.tone + toneShift, color, out var oto)) {
                 phonemeToReturn = oto.Alias;
-            } else if (singer.TryGetMappedOto(phoneme, note.tone, color, out oto)) {
+            } 
+            else if (singer.TryGetMappedOto(phoneme, note.tone, color, out oto)) {
                 phonemeToReturn = oto.Alias;
-            } else if (nullIfNotFound) {
+            } 
+            else if (nullIfNotFound) {
                 phonemeToReturn = null;
-            } else {
+            } 
+            else {
                 phonemeToReturn = phoneme;
             }
 
@@ -77,31 +79,31 @@ namespace OpenUtau.Plugin.Builtin {
         /// </summary>
         public Result GenerateResult(String firstPhoneme, String secondPhoneme, int totalDuration, int secondPhonemePosition, int totalDurationDivider=3){
             return new Result() {
-                        phonemes = new Phoneme[] {
-                            new Phoneme { phoneme = firstPhoneme },
-                            new Phoneme { phoneme = secondPhoneme,
-                            position = totalDuration - Math.Min(totalDuration / totalDurationDivider, secondPhonemePosition)},
-                            }
-                    };
+                phonemes = new Phoneme[] {
+                    new Phoneme { phoneme = firstPhoneme },
+                    new Phoneme { phoneme = secondPhoneme,
+                    position = totalDuration - Math.Min(totalDuration / totalDurationDivider, secondPhonemePosition)},
+                }
+            };
         }
         public Result GenerateResult(String firstPhoneme){
             return new Result() {
-                        phonemes = new Phoneme[] {
-                            new Phoneme { phoneme = firstPhoneme },
-                            }
-                    };
+                phonemes = new Phoneme[] {
+                    new Phoneme { phoneme = firstPhoneme },
+                }
+            };
         }
 
         public Result GenerateResult(String firstPhoneme, String secondPhoneme, String thirdPhoneme, int totalDuration, int secondPhonemePosition, int secondTotalDurationDivider=3, int thirdTotalDurationDivider=8){
             return new Result() {
-                                phonemes = new Phoneme[] {
-                            new Phoneme { phoneme = firstPhoneme},
-                            new Phoneme { phoneme = secondPhoneme,
-                            position = totalDuration - Math.Min(totalDuration / secondTotalDurationDivider, secondPhonemePosition)},
-                            new Phoneme { phoneme = thirdPhoneme,
-                            position = totalDuration - totalDuration / thirdTotalDurationDivider},
-                            }// -음소 있이 이어줌
-                            };
+                phonemes = new Phoneme[] {
+                    new Phoneme { phoneme = firstPhoneme},
+                    new Phoneme { phoneme = secondPhoneme,
+                    position = totalDuration - Math.Min(totalDuration / secondTotalDurationDivider, secondPhonemePosition)},
+                    new Phoneme { phoneme = thirdPhoneme,
+                    position = totalDuration - totalDuration / thirdTotalDurationDivider},
+                }// -음소 있이 이어줌
+            };
         }
         public override Result Process(Note[] notes, Note? prev, Note? next, Note? prevNeighbour, Note? nextNeighbour, Note[] prevNeighbours) {
             /// what it does: - generating phonemes according to phoneme hints (each phonemes should be separated by ",". (Example: "a, a i, ya"))
@@ -145,7 +147,6 @@ namespace OpenUtau.Plugin.Builtin {
                         VVdictionary[$"{VVsource[i]} {VVsource[j]}"] = $"{VVsource[j]}"; // CV/CVC >> CBNN 호환용
                         VVdictionary[$"{VVsource[j]}"] = $"{VVsource[i]} {VVsource[j]}"; // CBNN >> CV/CVC 호환용
                     }
-
                 }
 
                 for (int i = 0; i < phoneticHintsLength; i++) {
@@ -157,14 +158,16 @@ namespace OpenUtau.Plugin.Builtin {
                         if (i == 0) {
                             // first syllable
                             phonemes[i] = new Phoneme { phoneme = alias };
-                        } else if ((i == phoneticHintsLength - 1) && ((phoneticHints[i].Trim().EndsWith('-')) || phoneticHints[i].Trim().EndsWith('R'))) {
+                        } 
+                        else if ((i == phoneticHintsLength - 1) && ((phoneticHints[i].Trim().EndsWith('-')) || phoneticHints[i].Trim().EndsWith('R'))) {
                             // 마지막 음소이고 끝음소(ex: a -, a R)일 경우, VCLengthShort에 맞춰 음소를 배치
                             phonemes[i] = new Phoneme {
                                 phoneme = alias,
                                 position = totalDuration - Math.Min(vcLengthShort, totalDuration / 8)
                                 // 8등분한 길이로 끝에 숨소리 음소 배치, n등분했을 때의 음소 길이가 이보다 작다면 n등분했을 때의 길이로 간다
                             };
-                        } else if (phoneticHintsLength == 2) {
+                        } 
+                        else if (phoneticHintsLength == 2) {
                             // 입력되는 발음힌트가 2개일 경우, 2등분되어 음소가 배치된다.
                             // 이 경우 부자연스러우므로 3등분해서 음소 배치하게 조정
                             phonemes[i] = new Phoneme {
@@ -172,7 +175,8 @@ namespace OpenUtau.Plugin.Builtin {
                                 position = totalDuration - totalDuration / 3
                                 // 3등분해서 음소가 배치됨
                             };
-                        } else {
+                        } 
+                        else {
                             phonemes[i] = new Phoneme {
                                 phoneme = alias,
                                 position = totalDuration - ((totalDuration / phoneticHintsLength) * (phoneticHintsLength - i))
@@ -189,7 +193,8 @@ namespace OpenUtau.Plugin.Builtin {
                                 position = totalDuration - totalDuration / 3
                                 // 3등분해서 음소가 배치됨
                             };
-                        } else {
+                        } 
+                        else {
                             phonemes[i] = new Phoneme {
                                 phoneme = FindInOto(singer, VVdictionary[phoneticHints[i].Trim()], note),
                                 position = totalDuration - ((totalDuration / phoneticHintsLength) * (phoneticHintsLength - i))
@@ -204,15 +209,16 @@ namespace OpenUtau.Plugin.Builtin {
                             // 균등하게 n등분해서 음소가 배치됨
                         };
                     }
-
                 }
 
                 return new Result() {
                     phonemes = phonemes
                 };
-            } else if (hanguel.IsHangeul(lyric) && (!lyric.Equals("-")) && (!lyric.Equals("R"))) {
+            } 
+            else if (hanguel.IsHangeul(lyric) && (!lyric.Equals("-")) && (!lyric.Equals("R"))) {
                 return ConvertPhonemes(notes, prev, next, prevNeighbour, nextNeighbour, prevNeighbours);
-            } else {
+            } 
+            else {
                 return GenerateEndSound(notes, prev, next, prevNeighbour, nextNeighbour, prevNeighbours);
             }
         }

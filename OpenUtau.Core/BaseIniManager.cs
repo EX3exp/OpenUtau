@@ -7,7 +7,6 @@ using OpenUtau.Core.Ustx;
 
             public BaseIniManager() { }
 
-
             /// <summary>
             /// if no [iniFileName] in Singer Directory, it makes new [iniFileName] with settings in [IniSetUp(iniFile)].
             /// </summary>
