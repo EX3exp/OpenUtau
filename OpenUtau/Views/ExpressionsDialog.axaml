@@ -70,7 +70,7 @@
       </Grid>
       <Grid IsVisible="{Binding Expression.ShowNumbers}">
         <Label FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" Content="{DynamicResource exps.maxvalue}" Width="130" HorizontalAlignment="Left"/>
-        <TextBox Margin="140,5,0,7" IsEnabled="{Binding Expression.IsCustom}" Text="{Binding Expression.Max}"/>
+        <TextBox FontSize="12" Padding="1" Margin="140,5,0,7" IsEnabled="{Binding Expression.IsCustom}" Text="{Binding Expression.Max}"/>
       </Grid>
       <Grid IsVisible="{Binding Expression.ShowNumbers}">
         <Label FontSize="12" Height="20" Padding="1" Margin="0,5,0,5" Content="{DynamicResource exps.defaultvalue}" Width="130" HorizontalAlignment="Left"/>
@@ -78,8 +78,8 @@
       </Grid>
       <Grid IsVisible="{Binding Expression.IsOptions}">
         <Label FontSize="12" Padding="1" Margin="0,5,0,5" Content="{DynamicResource exps.optionvalues}" Width="130" HorizontalAlignment="Left"/>
-        <TextBox Margin="140,5,0,7" Text="{Binding Expression.OptionValues}"/>
-        <TextBlock Margin="145,33,0,7" FontSize="12" Text="{DynamicResource exps.sepbycomma}"/>
+        <TextBox FontSize="12" Padding="1" Margin="140,5,0,7" Text="{Binding Expression.OptionValues}"/>
+        <TextBlock Margin="145,33,0,7" FontSize="12" Padding="1" Text="{DynamicResource exps.sepbycomma}"/>
       </Grid>
     </StackPanel>
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
