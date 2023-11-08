@@ -388,9 +388,9 @@
   <system:String x:Key="singers.otoview.showall">모두 보이기</system:String>
   <system:String x:Key="singers.otoview.zoomin">확대</system:String>
   <system:String x:Key="singers.otoview.zoomout">축소</system:String>
-  <system:String x:Key="singers.readme">이용약관(readme.txt)</system:String>
+  <system:String x:Key="singers.readme">이용약관(readme)</system:String>
   <system:String x:Key="singers.readme.notfound">가수가 있는 폴더에 readme.txt 가 존재하지 않아요.</system:String>
-  <system:String x:Key="singers.playsample">샘플 음성 재생</system:String>
+  <system:String x:Key="singers.playsample">샘플 음성</system:String>
   <system:String x:Key="singers.refresh">새로고침</system:String>
   <system:String x:Key="singers.setdefaultphonemizer">가수의 기본 음소화기 설정</system:String>
   <system:String x:Key="singers.setencoding">인코딩 설정</system:String>
