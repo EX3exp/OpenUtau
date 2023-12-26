@@ -13,7 +13,7 @@ namespace OpenUtau.Plugin.Builtin {
     public class KoreanCVPhonemizer : BaseKoreanPhonemizer {
 
         // 1. Load Singer and Settings
-        private KoreanCVIniSetting koreanCVIniSetting; // Setting object
+        private KoreanCVIniSetting koreanCVIniSetting; // Manages Setting
 
         public bool isUsingShi, isUsing_aX, isUsing_i, isRentan;
 
