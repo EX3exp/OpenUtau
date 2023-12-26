@@ -1,19 +1,15 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using OpenUtau.Api;
 using OpenUtau.Core.Ustx;
-using OpenUtau.Core.Util;
-using Serilog;
+using OpenUtau;
 
-
-namespace OpenUtau.Core.DiffSinger{
+namespace OpenUtau.Core.DiffSinger {
     [Phonemizer("DiffSinger Korean Phonemizer", "DIFFS KO", language: "KO", author: "EX3")]
     public class DiffSingerKoreanPhonemizer : DiffSingerBasePhonemizer{
-        protected Hanguel hangeul = new Hanguel();
         USinger singer;
         DsConfig dsConfig;
         string rootPath;
@@ -148,7 +144,7 @@ namespace OpenUtau.Core.DiffSinger{
                 String? prevTemp = note[0].lyric;
 
                 // Phoneme variation
-                if (hangeul.IsHangeul(prevTemp)) {note[0].lyric = hangeul.Variate(prev, prevTemp, next);}
+                if (KoreanPhonemizerUtil.IsHangeul(prevTemp)) {note[0].lyric = KoreanPhonemizerUtil.Variate(prev, prevTemp, next);}
                 
                 prev = prevTemp;
 

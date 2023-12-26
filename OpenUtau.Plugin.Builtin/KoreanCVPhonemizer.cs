@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenUtau.Api;
 using OpenUtau.Core.Ustx;
-using OpenUtau.Core.Util;
+using OpenUtau.Core;
 
 namespace OpenUtau.Plugin.Builtin {
     /// Phonemizer for 'KOR CV' ///
@@ -202,7 +202,6 @@ namespace OpenUtau.Plugin.Builtin {
                 {"null", new string[3]{"", "", BatchimType.PHONEME_IS_NULL.ToString()}} // 뒤 글자가 없을 때를 대비
                 };
 
-            public Hanguel hangeul = new Hanguel();
 
             private string thisFirstConsonant, thisVowelHead, thisVowelTail, thisLastConsonant;
             private string nextFirstConsonant, nextVowelHead, nextLastConsonant;
@@ -372,7 +371,7 @@ namespace OpenUtau.Plugin.Builtin {
 
             public Hashtable ConvertForCV(Note? prevNeighbour, Note note, Note? nextNeighbour, bool[] setting) {
                 // Hangeul.Separate() 함수 등을 사용해 [초성 중성 종성]으로 분리된 결과물을 CV식으로 변경
-                Hashtable variated = hangeul.Variate(prevNeighbour, note, nextNeighbour);
+                Hashtable variated = KoreanPhonemizerUtil.Variate(prevNeighbour, note, nextNeighbour);
 
                 thisFirstConsonantType = Enum.Parse<ConsonantType>(FIRST_CONSONANTS[(string)variated[3]][1]);
                 thisLastConsonantType = Enum.Parse<BatchimType>(LAST_CONSONANTS[(string)variated[5]][2]);
@@ -385,7 +384,7 @@ namespace OpenUtau.Plugin.Builtin {
             }
 
             public Hashtable ConvertForCV(Note? prevNeighbour, bool[] setting) {
-                return ConvertForCVSingle(hangeul.Variate(prevNeighbour?.lyric), setting);
+                return ConvertForCVSingle(KoreanPhonemizerUtil.Variate(prevNeighbour?.lyric), setting);
             }
 
             /// <summary>
@@ -717,7 +716,6 @@ namespace OpenUtau.Plugin.Builtin {
             int vcLength = 120;
             int vcLengthShort = 30;
 
-            Hanguel hanguel = new Hanguel();
             KOCV cv = new KOCV(singer, thisNote, totalDuration, vcLength, vcLengthShort);
 
             try{
@@ -747,7 +745,7 @@ namespace OpenUtau.Plugin.Builtin {
             }   
 
             else if ((prevNeighbour == null) && (nextNeighbour != null)) {
-                if (hanguel.IsHangeul(nextNeighbour?.lyric)) {// 뒤 글자가 한글임
+                if (KoreanPhonemizerUtil.IsHangeul(nextNeighbour?.lyric)) {// 뒤 글자가 한글임
                     if (! cv.ThisHasBatchim()) { // 앞이웃만 없고 받침 없음 / [냐]냥
                         return cv.NextFirstConsonantNeedsPause() ? GenerateResult(cv.frontCV, "", totalDuration, vcLength) : GenerateResult(cv.frontCV);
                     } 
@@ -761,7 +759,7 @@ namespace OpenUtau.Plugin.Builtin {
             } 
 
             else if ((prevNeighbour != null) && (nextNeighbour != null)) {// 둘다 이웃 있음
-                if (hanguel.IsHangeul(nextNeighbour?.lyric)) {// 뒤의 이웃이 한국어임
+                if (KoreanPhonemizerUtil.IsHangeul(nextNeighbour?.lyric)) {// 뒤의 이웃이 한국어임
                     if (! cv.ThisHasBatchim()) { // 둘다 이웃 있고 받침 없음 / 냥[냐]냥
                         if (cv.ThisNeedsFrontCV()) {
                             return cv.NextFirstConsonantNeedsPause() ? GenerateResult(cv.frontCV, "", totalDuration, cv.vcLength, 2) : GenerateResult(cv.frontCV);
@@ -806,13 +804,12 @@ namespace OpenUtau.Plugin.Builtin {
 
             int totalDuration = notes.Sum(n => n.duration);
 
-            Hanguel hanguel = new Hanguel();
             KOCV cv = new KOCV(singer, thisNote, totalDuration, vcLength, vcLengthShort);
             string phonemeToReturn = lyric; // 아래에서 아무것도 안 걸리면 그냥 가사 반환
             string prevLyric = prevNote?.lyric;
 
             if (phonemeToReturn.Equals("-")) {
-                if (hanguel.IsHangeul(prevLyric)) {
+                if (KoreanPhonemizerUtil.IsHangeul(prevLyric)) {
                     cvPhonemes = cv.ConvertForCV(prevNote, 
                                 new bool[] { isUsingShi, isUsing_aX, isUsing_i, isRentan }); 
 
@@ -830,7 +827,7 @@ namespace OpenUtau.Plugin.Builtin {
                 return GenerateResult(phonemeToReturn);
             } 
             else if (phonemeToReturn.Equals("R")) {
-                if (hanguel.IsHangeul(prevLyric)) {
+                if (KoreanPhonemizerUtil.IsHangeul(prevLyric)) {
                     cvPhonemes = cv.ConvertForCV(prevNote, 
                                 new bool[] { isUsingShi, isUsing_aX, isUsing_i, isRentan }); // [isUsingShi], isUsing_aX, isUsing_i, isRentan
 

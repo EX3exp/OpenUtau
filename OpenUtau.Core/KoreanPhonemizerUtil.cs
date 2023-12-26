@@ -5,7 +5,7 @@ using static OpenUtau.Api.Phonemizer;
 
 namespace OpenUtau.Core {
     /// <summary>
-    /// static class that performs Korean Phoneme Variation, Jamo separation, Jamo merging, etc.
+    /// static class that performs Korean Phoneme Variation, Jamo separation, Jamo merging, etc. 
     /// </summary>
     public static class KoreanPhonemizerUtil {
         /// <summary>
@@ -13,7 +13,6 @@ namespace OpenUtau.Core {
         /// <br/><br/>유니코드 순서대로 정렬된 한국어 초성들입니다.
         /// </summary>
         const string FIRST_CONSONANTS = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
-
         /// <summary>
         /// Middle hangeul vowels, ordered in unicode sequence.
         /// <br/><br/>유니코드 순서대로 정렬된 한국어 중성들입니다.

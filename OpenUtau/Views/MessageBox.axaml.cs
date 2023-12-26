@@ -1,14 +1,19 @@
 ﻿using System;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Serilog;
 
 namespace OpenUtau.App.Views {
     public partial class MessageBox : Window {
         public enum MessageBoxButtons { Ok, OkCancel, YesNo, YesNoCancel, OkCopy }
         public enum MessageBoxResult { Ok, Cancel, Yes, No }
+
+        private static MessageBox? loadingDialog;
 
         public MessageBox() {
             InitializeComponent();
@@ -52,7 +57,8 @@ namespace OpenUtau.App.Views {
             var msgbox = new MessageBox() {
                 Title = title
             };
-            msgbox.Text.Text = text;
+            msgbox.Text.IsVisible = false;
+            msgbox.SetTextWithLink(text, msgbox.TextPanel);
 
             var res = MessageBoxResult.Ok;
 
@@ -101,6 +107,52 @@ namespace OpenUtau.App.Views {
             msgbox.Text.Text = text;
             msgbox.ShowDialog(parent);
             return msgbox;
+        }
+
+        public static void ShowLoading(Window parent) {
+            loadingDialog = new MessageBox() {
+                Title = "Loading"
+            };
+            loadingDialog.Text.Text = "Please wait...";
+            loadingDialog.ShowDialog(parent);
+        }
+
+        public static void CloseLoading() {
+            if (loadingDialog != null) {
+                loadingDialog.Close();
+            }
+        }
+
+        public static bool LoadingIsActive() {
+            return loadingDialog != null && loadingDialog.IsActive;
+        }
+
+        private void SetTextWithLink(string text, StackPanel textPanel) {
+            // @"http(s)?://([\w-]+\.)+[\w-]+(/[A-Z0-9-.,_/?%&=]*)?"
+            var regex = new Regex(@"(\r\n|\n| )http(s)?://[^(\r\n|\n| )]+", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            var match = regex.Match(text);
+            if (match.Success) {
+                textPanel.Children.Add(new TextBlock { Text = text.Substring(0, match.Index) });
+                var hyperlink = new Button();
+                hyperlink.Content = match.Value.Trim();
+                hyperlink.Click += OnUrlClick;
+                textPanel.Children.Add(hyperlink);
+
+                SetTextWithLink(text.Substring(match.Index + match.Length), textPanel);
+            } else {
+                if (!string.IsNullOrEmpty(text)) {
+                    textPanel.Children.Add(new TextBlock { Text = text });
+                }
+            }
+        }
+        private void OnUrlClick(object? sender, RoutedEventArgs e) {
+            try {
+                if (sender is Button button && button.Content is string url) {
+                    OS.OpenWeb(url);
+                }
+            } catch (Exception ex) {
+                Log.Error(ex, "Failed to open url");
+            }
         }
     }
 }

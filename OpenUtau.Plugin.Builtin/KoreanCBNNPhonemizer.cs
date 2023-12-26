@@ -3,13 +3,11 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using OpenUtau.Api;
+using OpenUtau.Core;
 using OpenUtau.Core.Ustx;
-using OpenUtau.Core.Util;
-
 
 namespace OpenUtau.Plugin.Builtin {
     /// Phonemizer for 'KOR CBNN(Combination)' ///
-    
     [Phonemizer("Korean CBNN Phonemizer", "KO CBNN", "EX3", language: "KO")]
 
     public class KoreanCBNNPhonemizer : BaseKoreanPhonemizer {
@@ -57,7 +55,6 @@ namespace OpenUtau.Plugin.Builtin {
                 /// <summary>음소 자체가 없음</summary>
                 PHONEME_IS_NULL
             }
-            public Hanguel hangeul = new Hanguel();
 
             /// <summary>
             /// CBNN phoneme table of first consonants. (key "null" is for Handling empty string)
@@ -369,7 +366,7 @@ namespace OpenUtau.Plugin.Builtin {
             public Hashtable ConvertForCBNN(Note? prevNeighbour, Note note, Note? nextNeighbour) {
                 // Hangeul.separate() 함수 등을 사용해 [초성 중성 종성]으로 분리된 결과물을 CBNN식으로 변경
                 // 이 함수만 불러서 모든 것을 함 (1) [냥]냥
-                Hashtable variated = hangeul.Variate(prevNeighbour, note, nextNeighbour);
+                Hashtable variated = KoreanPhonemizerUtil.Variate(prevNeighbour, note, nextNeighbour);
                 thisFirstConsonantType = Enum.Parse<ConsonantType>(FIRST_CONSONANTS[(string)variated[3]][1]);
                 thisLastConsonantType = Enum.Parse<BatchimType>(LAST_CONSONANTS[(string)variated[5]][2]);
                 prevFirstConsonantType = Enum.Parse<ConsonantType>(FIRST_CONSONANTS[(string)variated[0]][1]);
@@ -381,7 +378,7 @@ namespace OpenUtau.Plugin.Builtin {
 
             public Hashtable ConvertForCBNN(Note? prevNeighbour) {
                 // Hangeul.separate() 함수 등을 사용해 [초성 중성 종성]으로 분리된 결과물을 CBNN식으로 변경
-                return ConvertForCBNNSingle(hangeul.Variate(prevNeighbour?.lyric));
+                return ConvertForCBNNSingle(KoreanPhonemizerUtil.Variate(prevNeighbour?.lyric));
             }
 
             /// <summary>
@@ -712,7 +709,7 @@ namespace OpenUtau.Plugin.Builtin {
             int totalDuration = notes.Sum(n => n.duration);
             int vcLength = 120; 
             int vcLengthShort = 90;
-            Hanguel hanguel = new Hanguel();
+
             CBNN CBNN = new CBNN(singer, thisNote, totalDuration, vcLength, vcLengthShort);
 
             try{
@@ -758,7 +755,7 @@ namespace OpenUtau.Plugin.Builtin {
             } 
 
             else if ((prevNeighbour == null) && (nextNeighbour != null)) {// next lyric is Hangeul
-                if (hanguel.IsHangeul(nextNeighbour?.lyric)) {// Next neighbour only  / null [아] 아
+                if (KoreanPhonemizerUtil.IsHangeul(nextNeighbour?.lyric)) {// Next neighbour only  / null [아] 아
                     if (!CBNN.ThisHasBatchim()) { // No batchim / null [냐] 냥
                         return CBNN.VC != null ? GenerateResult(CBNN.frontCV, CBNN.VC, totalDuration, CBNN.vcLength, 3) : GenerateResult(CBNN.frontCV);
                     } 
@@ -777,7 +774,7 @@ namespace OpenUtau.Plugin.Builtin {
             } 
 
             else if ((prevNeighbour != null) && (nextNeighbour != null)) {// 둘다 이웃 있음
-                if (hanguel.IsHangeul(nextNeighbour?.lyric)) {// 뒤의 이웃이 한국어임
+                if (KoreanPhonemizerUtil.IsHangeul(nextNeighbour?.lyric)) {// 뒤의 이웃이 한국어임
                     if (! CBNN.ThisHasBatchim()) { // 둘다 이웃 있고 받침 없음 / 냥[냐]냥
                         if (CBNN.ThisVowelNeedsVV()) {
                             return CBNN.VC != null ? GenerateResult(CBNN.VV, CBNN.VC, totalDuration, CBNN.vcLength) : GenerateResult(CBNN.VV);
@@ -849,7 +846,6 @@ namespace OpenUtau.Plugin.Builtin {
             }
         }
 
-
         public override Result GenerateEndSound(Note[] notes, Note? prev, Note? next, Note? prevNeighbour, Note? nextNeighbour, Note[] prevNeighbours) {
             Hashtable cbnnPhonemes;
 
@@ -864,13 +860,13 @@ namespace OpenUtau.Plugin.Builtin {
             int totalDuration = notes.Sum(n => n.duration);
             int vcLength = 120; // TODO
             int vcLengthShort = 90;
-            Hanguel hanguel = new Hanguel();
+
             CBNN CBNN = new CBNN(singer, thisNote, totalDuration, vcLength, vcLengthShort);
             string phonemeToReturn = lyric; // 아래에서 아무것도 안 걸리면 그냥 가사 반환
             string prevLyric = prevNote?.lyric;
 
             if (thisNote.lyric.Equals("-")) {
-                if (hanguel.IsHangeul(prevLyric)) {
+                if (KoreanPhonemizerUtil.IsHangeul(prevLyric)) {
                     cbnnPhonemes = CBNN.ConvertForCBNN(prevNote);
 
                     string prevVowelTail = (string)cbnnPhonemes[2]; // V이전 노트의 모음 음소 
@@ -886,7 +882,7 @@ namespace OpenUtau.Plugin.Builtin {
                 }
                 return GenerateResult(phonemeToReturn);
             } else if (thisNote.lyric.Equals("R")) {
-                if (hanguel.IsHangeul(prevLyric)) {
+                if (KoreanPhonemizerUtil.IsHangeul(prevLyric)) {
                     cbnnPhonemes = CBNN.ConvertForCBNN(prevNote);
 
                     string prevVowelTail = (string)cbnnPhonemes[2]; // V이전 노트의 모음 음소 
