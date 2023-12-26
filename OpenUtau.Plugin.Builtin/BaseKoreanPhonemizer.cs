@@ -1,16 +1,12 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using OpenUtau.Api;
 using OpenUtau.Core;
 using OpenUtau.Core.Ustx;
-using OpenUtau.Core.Util;
-using OpenUtau.Plugin.Builtin;
-using static OpenUtau.Api.Phonemizer;
+
 
 namespace OpenUtau.Plugin.Builtin {
     /// <summary>
@@ -156,8 +152,6 @@ namespace OpenUtau.Plugin.Builtin {
         /// <para> Also it can't generate Endsounds automatically, so should implement GenerateEndSound() Method in child class.</para>
         /// </summary>
         public override Result Process(Note[] notes, Note? prev, Note? next, Note? prevNeighbour, Note? nextNeighbour, Note[] prevNeighbours) {
-            
-
             Note note = notes[0];
             string lyric = note.lyric;
             string phoneticHint = note.phoneticHint;
@@ -175,14 +169,11 @@ namespace OpenUtau.Plugin.Builtin {
                 string[] phoneticHints = phoneticHint.Split(','); // phonemes are seperated by ','.
                 int phoneticHintsLength = phoneticHints.Length;
 
-
-
                 Phoneme[] phonemes = new Phoneme[phoneticHintsLength];
 
                 Dictionary<string, string> VVdictionary = new Dictionary<string, string>() { };
 
                 string[] VVsource = new string[] { "a", "i", "u", "e", "o", "eo", "eu" };
-
 
                 for (int i = 0; i < 7; i++) {
                     // VV 딕셔너리를 채운다
