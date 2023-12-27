@@ -466,30 +466,20 @@ namespace OpenUtau.Core.Enunu {
                 }
 
                 if (i == 0){
+                    // 받침 + 자음 오면 받침길이 + 자음길이 / 2의 위치에 자음이 오도록 하기
                     if (isPlainVowel(phonemes[i].phoneme)) {
                         phonemes[i].position = 0;
                     }
-                    else if (nextPhone != null && isPlainVowel(((Phoneme)nextPhone).phoneme) && isSemivowel(phonemes[i].phoneme)) {
-                        phonemes[i].position = -1 * (prevLength / 8);
-                        phonemes[i + 1].position = 0;
+                    else if (nextPhone != null && ! isPlainVowel(((Phoneme)nextPhone).phoneme) && ! isSemivowel(((Phoneme)nextPhone).phoneme) && isPlainVowel(((Phoneme)nextPhone).phoneme) && isSemivowel(currPhone.phoneme)) {
+                        phonemes[i + 1].position = length / 10;
                     }
                     else if (nextPhone != null && isSemivowel(((Phoneme)nextPhone).phoneme)){
-                        phonemes[i].position = -1 * (prevLength / 8) - length / 8;
-                        phonemes[i + 1].position = -1 * (length / 8);
                         if (i + 2 < phonemes.Length){
-                            phonemes[i + 2].position = 0;
+                            phonemes[i + 2].position = length / 10;
                         }
                         
                     }
-                    else if (nextPhone != null && isPlainVowel(((Phoneme)nextPhone).phoneme)) {
-                        phonemes[i].position = -1 * (prevLength / 8);
-                        phonemes[i + 1].position = 0;
-                    }
                 }
-                else if (prevPhone != null && isPlainVowel(((Phoneme)prevPhone).phoneme) && isBatchim(currPhone.phoneme)) {
-                    phonemes[i].position = length - length / 5;
-                }
-
                 prevPhone = currPhone;
             }
         }
