@@ -4,14 +4,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using OpenUtau.Core.Ustx;
 using OpenUtau.Classic;
 using Serilog;
 using static OpenUtau.Api.Phonemizer;
-using System.Security.Policy;
-using YamlDotNet.Core.Tokens;
-using System.Net.Http;
 
 namespace OpenUtau.Core {
     /// <summary>
