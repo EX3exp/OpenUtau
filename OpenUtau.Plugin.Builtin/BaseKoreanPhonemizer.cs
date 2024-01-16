@@ -17,7 +17,7 @@ namespace OpenUtau.Plugin.Builtin {
     public abstract class BaseKoreanPhonemizer : Phonemizer {
         
         protected USinger singer;
-        protected int vcLength = 120; // TODO
+
         protected int vcLengthShort = 90;
 
         protected static readonly string[] PLAIN_VOWELS = new string[]{"ㅏ", "ㅣ", "ㅜ", "ㅔ", "ㅗ", "ㅡ", "ㅓ", "ㅢ"};
